@@ -41,7 +41,7 @@ poetry run python main.py
 
 ### API Usage
 
-#### Fine-tune a Model
+#### Fine-tune a Model (you might want to alter the parameters depending on the type of model and dataset)
 
 ```bash
 curl -X POST "http://localhost:8000/finetuning/" \
