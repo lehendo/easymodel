@@ -29,7 +29,7 @@ A comprehensive model fine-tuning and evaluation platform that provides powerful
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/lehendo/easymodel.git
 cd easymodel
 
 # Install dependencies
