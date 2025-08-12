@@ -1,0 +1,38 @@
+[tool.poetry]
+name = "polar"
+version = "0.1.0"
+description = ""
+authors = ["Pratyay Pandey <p.pandey@berkeley.edu>"]
+readme = "README.md"
+
+[tool.poetry.scripts]
+start-local = "polar.main:start_local"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+uvicorn = {extras = ["standard"], version = "^0.34.0"}
+fastapi = "^0.115.6"
+httpx = "^0.28.1"
+structlog = "^24.4.0"
+transformers = "^4.47.1"
+datasets = "^3.2.0"
+huggingface-hub = "^0.27.0"
+pydantic = "^2.10.4"
+argparse = "^1.4.0"
+peft = "^0.14.0"
+deepspeed = "^0.16.2"
+torch = "2.2.2"
+setuptools = "^75.8.0"
+numpy = "1.26.4"
+
+
+[tool.poetry.group.dev.dependencies]
+flake8 = "^7.1.1"
+pep8-naming = "^0.14.1"
+black = "^24.10.0"
+ruff = "^0.8.4"
+setuptools = "^75.8.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
