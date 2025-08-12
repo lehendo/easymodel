@@ -1,12 +1,12 @@
 [tool.poetry]
-name = "polar"
+name = "easymodel"
 version = "0.1.0"
-description = ""
+description = "A comprehensive model fine-tuning and evaluation platform"
 authors = ["Pratyay Pandey <p.pandey@berkeley.edu>"]
 readme = "README.md"
 
 [tool.poetry.scripts]
-start-local = "polar.main:start_local"
+start-local = "easymodel.main:start_local"
 
 [tool.poetry.dependencies]
 python = "^3.12"
@@ -24,6 +24,10 @@ deepspeed = "^0.16.2"
 torch = "2.2.2"
 setuptools = "^75.8.0"
 numpy = "1.26.4"
+sentence-transformers = "^2.5.1"
+scikit-learn = "^1.5.2"
+nltk = "^3.8.1"
+evaluate = "^0.4.1"
 
 
 [tool.poetry.group.dev.dependencies]

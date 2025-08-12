@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from polar.utils.finetune2 import finetune_model
+from easymodel.utils.finetune2 import finetune_model
 import logging
 
 logger = logging.getLogger(__name__)

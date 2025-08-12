@@ -30,6 +30,10 @@ def finetune_model(base_model, datasets, output_space, api_key, task_type="class
    """
    # Load the tokenizer and model dynamically based on the task
    tokenizer = AutoTokenizer.from_pretrained(base_model)
+   
+   # Fix tokenizer padding token if needed
+   if tokenizer.pad_token is None:
+       tokenizer.pad_token = tokenizer.eos_token
 
 
    if task_type == "classification":
@@ -98,37 +102,22 @@ def finetune_model(base_model, datasets, output_space, api_key, task_type="class
    }
 
 
-   if task_type not in preprocess_map:
-       raise ValueError(f"Unsupported task_type: {task_type}")
-
-
-   preprocess = preprocess_map[task_type]
-
-
-   # Tokenize the datasets
-   tokenized_train = train_data.map(preprocess, batched=True) if train_data else None
-   tokenized_val = val_data.map(preprocess, batched=True) if val_data else None
-   tokenized_test = test_data.map(preprocess, batched=True) if test_data else None
+   # Tokenize datasets
+   tokenized_train = train_data.map(preprocess_map[task_type], batched=True)
+   tokenized_val = val_data.map(preprocess_map[task_type], batched=True) if val_data else None
 
 
    # Format datasets for PyTorch
-   def format_for_pytorch(dataset):
-       if dataset:
-           dataset.set_format(type="torch", columns=["input_ids", "attention_mask", "labels"] if "labels" in dataset.column_names else ["input_ids", "attention_mask"])
-       return dataset
+   tokenized_train.set_format(type='torch', columns=['input_ids', 'attention_mask', 'label'])
+   if tokenized_val:
+       tokenized_val.set_format(type='torch', columns=['input_ids', 'attention_mask', 'label'])
 
 
-   tokenized_train = format_for_pytorch(tokenized_train)
-   tokenized_val = format_for_pytorch(tokenized_val)
-   tokenized_test = format_for_pytorch(tokenized_test)
-
-
-   # Set up training arguments and Trainer
+   # Set up training arguments
    training_args = TrainingArguments(
        output_dir="./results",
        num_train_epochs=num_epochs,
        per_device_train_batch_size=batch_size,
-       evaluation_strategy="epoch" if val_data else "no",
        save_strategy="epoch",
        save_total_limit=1,
        logging_dir="./logs",
@@ -139,7 +128,7 @@ def finetune_model(base_model, datasets, output_space, api_key, task_type="class
    )
 
 
-   # Create Trainer with available datasets
+   # Set up trainer
    trainer = Trainer(
        model=model,
        args=training_args,
@@ -149,7 +138,7 @@ def finetune_model(base_model, datasets, output_space, api_key, task_type="class
    )
 
 
-   # rain the model
+   # Train the model
    trainer.train()
 
 

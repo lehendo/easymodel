@@ -6,15 +6,15 @@ import structlog
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import uvicorn
 
-from polar.endpoints import finetuning
+from easymodel.endpoints import finetuning, analytics
 
-app = FastAPI()
+app = FastAPI(title="EasyModel API", description="A comprehensive model fine-tuning and evaluation platform")
 logger = structlog.get_logger()
 
 @app.get("/")
 def read_root():
     logger.info("In root path")
-    return {"message": "eregion API!"}
+    return {"message": "EasyModel API - A comprehensive model fine-tuning and evaluation platform"}
 
 @app.get("/health")
 def health_check():
@@ -30,6 +30,9 @@ def health_check():
 
 # Include the finetuning router with a specific prefix
 app.include_router(finetuning.router, prefix="/finetuning", tags=["Finetuning"])
+
+# Include the analytics router with a specific prefix
+app.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
 
 if __name__ == "__main__":
     # Only use this if you want to run the app through the `python main.py` command
