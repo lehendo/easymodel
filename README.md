@@ -225,6 +225,8 @@ All core functionality tests are passing:
 
 ## Contributing
 
+If you work like to contribute to this project, feel free to do so! Listed below tells you how to do so:
+
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
