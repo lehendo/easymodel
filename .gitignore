@@ -164,3 +164,18 @@ cython_debug/
 
 # Results folder
 results/
+
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+*.env
+*.key
+*.secret
+*_token*
+*hf_token*
+*api_key*
+config.ini
+secrets.json
+secrets.yaml
+secrets.yml

@@ -2,6 +2,8 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from easymodel.utils.finetune2 import finetune_model
 import logging
+import os
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -16,7 +18,7 @@ class FinetuningRequest(BaseModel):
     batch_size: int = 8
     max_length: int = 128
     subset_size: int = 1000
-    api_key: str
+    api_key: Optional[str] = None  # Optional - will use environment variable if not provided
     task_type: str  # Task type like 'generation', 'classification', etc.
     text_field: str  # Single text field that the user wants to use
     label_field: str = None  # Label field is optional and only required for non-generation tasks
@@ -30,12 +32,20 @@ def fine_tune(data: FinetuningRequest):
         if data.task_type != "generation" and not data.label_field:
             raise HTTPException(status_code=400, detail="Label field is required for non-generation tasks.")
 
+        # Get API key from environment variable if not provided in request
+        api_key = data.api_key or os.getenv("HUGGINGFACE_API_KEY") or os.getenv("HF_TOKEN")
+        if not api_key:
+            raise HTTPException(
+                status_code=400, 
+                detail="Hugging Face API key is required. Please set HUGGINGFACE_API_KEY or HF_TOKEN environment variable, or provide api_key in the request."
+            )
+
         # Call the finetune_model function with the required parameters
         finetune_model(
             base_model=data.model_name,
             datasets=data.datasets,
             output_space=data.output_space,
-            api_key=data.api_key,
+            api_key=api_key,
             num_epochs=data.num_epochs,
             batch_size=data.batch_size,
             max_length=data.max_length,

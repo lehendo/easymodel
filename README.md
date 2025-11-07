@@ -35,14 +35,54 @@ cd easymodel
 # Install dependencies
 poetry install
 
+# Set up environment variables (required for Hugging Face Hub integration)
+# Create a .env file in the project root:
+echo "HUGGINGFACE_API_KEY=your-huggingface-api-key-here" > .env
+# Or export it directly:
+export HUGGINGFACE_API_KEY=your-huggingface-api-key-here
+# Get your API token from https://huggingface.co/settings/tokens
+
 # Run the application
 poetry run python main.py
 ```
+
+### Environment Variables
+
+The application uses environment variables to securely store API keys and tokens. **Never commit these to version control.**
+
+Required environment variables:
+- `HUGGINGFACE_API_KEY` or `HF_TOKEN`: Your Hugging Face API token for model pushing and authentication
+  - Get your token from: https://huggingface.co/settings/tokens
+  - The token is required for fine-tuning operations that push models to the Hugging Face Hub
+
+**Security Note**: The `.env` file and all token files are automatically ignored by git. Always use environment variables for sensitive credentials.
 
 ### API Usage
 
 #### Fine-tune a Model (you might want to alter the parameters depending on the type of model and dataset)
 
+**Recommended (using environment variable):**
+```bash
+# Set the environment variable first
+export HUGGINGFACE_API_KEY=your-huggingface-api-key
+
+# Then make the request (api_key is optional if environment variable is set)
+curl -X POST "http://localhost:8000/finetuning/" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model_name": "gpt2",
+    "datasets": ["squad"],
+    "output_space": "my-finetuned-model",
+    "num_epochs": 3,
+    "batch_size": 8,
+    "max_length": 128,
+    "subset_size": 1000,
+    "task_type": "generation",
+    "text_field": "text"
+  }'
+```
+
+**Alternative (passing api_key in request - not recommended for production):**
 ```bash
 curl -X POST "http://localhost:8000/finetuning/" \
   -H "Content-Type: application/json" \
@@ -59,6 +99,8 @@ curl -X POST "http://localhost:8000/finetuning/" \
     "text_field": "text"
   }'
 ```
+
+**Note**: For security, it's recommended to use the `HUGGINGFACE_API_KEY` or `HF_TOKEN` environment variable instead of passing the API key in the request body.
 
 #### Run Model Analytics
 
