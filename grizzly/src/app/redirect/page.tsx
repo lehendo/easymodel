@@ -28,7 +28,9 @@ export default function RedirectPage() {
 
         // Wait for 10 seconds before redirecting
         setTimeout(() => {
-          router.replace(`/project/${projects[0].id}/dashboard`);
+          if (projects[0]) {
+            router.replace(`/project/${projects[0].id}/dashboard`);
+          }
         }, 3000); // Delay for 10 seconds
       } else {
         console.error("No projects found, but a default project should exist.");
