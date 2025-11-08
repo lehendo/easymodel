@@ -215,7 +215,7 @@ const Home = () => {
   );
 
   const onNodeDrag = useCallback(
-    (_, node) => {
+    (_: any, node: Node) => {
       const updatedConnection = getUpdatedConnection(node);
       setEdges((es) => {
         const nextEdges = es.filter((e) => e.className !== "temp");
