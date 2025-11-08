@@ -172,6 +172,8 @@ const Home = () => {
     (node: Node) => {
       const { nodeLookup } = store.getState();
       const internalNode = getInternalNode(node.id);
+      if (!internalNode) return null;
+      
       const MIN_DISTANCE = 150;
 
       const closestNode = Array.from(nodeLookup.values()).reduce(
