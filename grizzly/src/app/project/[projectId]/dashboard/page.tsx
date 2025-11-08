@@ -315,7 +315,10 @@ const Home = () => {
           <Background color="#F7F9FB" />
           <Controls />
         </ReactFlow>
-        <NodePalette onAddNode={(node) => setNodes((nds) => [...nds, node])} />
+        <NodePalette 
+          onAddNode={(node) => setNodes((nds) => [...nds, node])} 
+          getReactFlowBounds={() => reactFlowWrapper.current?.getBoundingClientRect()} 
+        />
       </div>
     </div>
   );
