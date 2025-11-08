@@ -11,14 +11,22 @@ const __dirname = path.dirname(__filename);
 
 /** @type {import("next").NextConfig} */
 const config = {
-  webpack: (config, { isServer }) => {
-    // Explicitly set the alias for @ path resolution
-    // Use resolve to get absolute path, which works better in Vercel's build environment
+  // Explicitly configure webpack to resolve @ alias
+  webpack: (config) => {
     const srcPath = path.resolve(__dirname, "src");
-    config.resolve.alias = {
-      ...config.resolve.alias,
+    
+    // Ensure resolve.alias exists
+    config.resolve = config.resolve || {};
+    config.resolve.alias = config.resolve.alias || {};
+    
+    // Add the @ alias, preserving existing aliases
+    Object.assign(config.resolve.alias, {
       "@": srcPath,
-    };
+      "@/": srcPath + "/",
+    });
+    
+    console.log("Webpack alias configured:", config.resolve.alias["@"]);
+    
     return config;
   },
 };
