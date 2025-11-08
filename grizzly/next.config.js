@@ -11,12 +11,15 @@ const __dirname = path.dirname(__filename);
 
 /** @type {import("next").NextConfig} */
 const config = {
-  // Ensure path aliases work correctly
-  webpack: (config) => {
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      "@": path.resolve(__dirname, "./src"),
-    };
+  webpack: (config, { isServer }) => {
+    // Explicitly set the alias for @ path resolution
+    if (!config.resolve) {
+      config.resolve = {};
+    }
+    if (!config.resolve.alias) {
+      config.resolve.alias = {};
+    }
+    config.resolve.alias["@"] = path.join(__dirname, "src");
     return config;
   },
 };
