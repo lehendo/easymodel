@@ -194,7 +194,7 @@ const Home = () => {
           }
           return res;
         },
-        { distance: Number.MAX_VALUE, node: null },
+        { distance: Number.MAX_VALUE, node: null as any },
       );
 
       if (!closestNode.node) return null;
