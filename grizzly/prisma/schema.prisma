@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        String    @id @default(uuid())
+  clerkUID  String    @unique
+  email     String?   @unique
+  name      String?
+  projects  Project[]
+  jobs      Job[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Project {
+  id          String     @id @default(uuid())
+  name        String
+  nodes       String     @default("{}") // JSON stored as string for SQLite
+  userId      String
+  user        User       @relation(fields: [userId], references: [id])
+  analytics   Analytics? // No fields or references on this side
+  analyticsId String?    @unique
+  jobs        Job[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Analytics {
+  id        String   @id @default(uuid())
+  data      String   @default("{}") // JSON stored as string
+  projectId String   @unique
+  project   Project  @relation(fields: [projectId], references: [id]) // Only define fields & references here
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Job {
+  id        Int      @id @default(autoincrement())
+  type      String   // "ANALYTICS" or "FINETUNING"
+  status    String   @default("PENDING") // "PENDING", "IN_PROGRESS", "COMPLETED", "FAILED"
+  clerkUID  String
+  user      User     @relation(fields: [clerkUID], references: [clerkUID])
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id])
+  request   String   @default("{}") // JSON stored as string
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
