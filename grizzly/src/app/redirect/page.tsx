@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { api } from "../../trpc/react";
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 export default function RedirectPage() {
   const router = useRouter();
 

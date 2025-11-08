@@ -4,6 +4,9 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "../trpc/react";
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 export default function Home() {
   const router = useRouter();
   const { data: projects = [], isLoading } = api.project.getAllProjects.useQuery();
