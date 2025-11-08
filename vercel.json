@@ -1,0 +1,5 @@
+{
+  "buildCommand": "cd grizzly && npm install && npm run build",
+  "outputDirectory": "grizzly/.next",
+  "installCommand": "cd grizzly && npm install"
+}
