@@ -82,7 +82,7 @@ export default function UnifiedGQSVisualization() {
           </Toggle>
         </div>
         <div className="flex flex-col md:flex-row">
-          <ChartContainer className="h-[400px] w-full md:w-2/3">
+          <ChartContainer config={{}} className="h-[400px] w-full md:w-2/3">
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart cx="50%" cy="50%" outerRadius="80%" data={data} margin={{ top: 5, right: 45, left: 45, bottom: 5 }}>
                 <PolarGrid />
