@@ -117,7 +117,7 @@ const Home = () => {
 
   // Sync nodes to the database
   const syncNodesToDB = async () => {
-    if (nodes.length > 0) {
+    if (nodes.length > 0 && projectId) {
       await syncNodesMutation.mutateAsync({ projectId, nodes });
       setLastSyncTime(Date.now()); // Update last sync time
     }
