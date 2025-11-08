@@ -37,7 +37,7 @@ const ReactFlow = dynamic(
 
 const MIN_INACTIVITY = 60 * 1000; // 1 minute in milliseconds
 
-const NodeContextMenu = ({ children, onDelete }) => (
+const NodeContextMenu = ({ children, onDelete }: { children: React.ReactNode; onDelete: () => void }) => (
   <ContextMenu>
     <ContextMenuTrigger>{children}</ContextMenuTrigger>
     <ContextMenuContent className="w-48">
