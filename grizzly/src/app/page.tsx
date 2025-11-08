@@ -9,7 +9,7 @@ export default function Home() {
   const { data: projects = [], isLoading } = api.project.getAllProjects.useQuery();
 
   useEffect(() => {
-    if (!isLoading && projects.length > 0) {
+    if (!isLoading && projects.length > 0 && projects[0]) {
       // Redirect to first project's dashboard
       router.replace(`/project/${projects[0].id}/dashboard`);
     }
