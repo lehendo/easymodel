@@ -4,16 +4,13 @@
  */
 import "./src/env.js";
 import path from "path";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 /** @type {import("next").NextConfig} */
 const config = {
   // Explicitly configure webpack to resolve @ alias
   webpack: (config) => {
-    const srcPath = path.resolve(__dirname, "src");
+    // Use process.cwd() which is more reliable across environments
+    const srcPath = path.join(process.cwd(), "src");
     
     // Ensure resolve.alias exists
     config.resolve = config.resolve || {};
@@ -22,10 +19,10 @@ const config = {
     // Add the @ alias, preserving existing aliases
     Object.assign(config.resolve.alias, {
       "@": srcPath,
-      "@/": srcPath + "/",
+      "@/": path.join(process.cwd(), "src") + path.sep,
     });
     
-    console.log("Webpack alias configured:", config.resolve.alias["@"]);
+    console.log("Webpack alias configured with cwd:", process.cwd(), "->", srcPath);
     
     return config;
   },
