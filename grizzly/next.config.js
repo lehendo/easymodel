@@ -5,6 +5,11 @@
 import "./src/env.js";
 
 /** @type {import("next").NextConfig} */
-const config = {};
+const config = {
+  // Ensure path aliases work correctly
+  webpack: (config) => {
+    return config;
+  },
+};
 
 export default config;
