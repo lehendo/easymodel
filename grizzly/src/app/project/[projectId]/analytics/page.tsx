@@ -28,10 +28,7 @@ const DashboardPage = () => {
   return (
     <div className="flex h-screen flex-col lg:flex-row">
       {/* Left Sidebar */}
-      <LeftSidebar
-        isOpen={leftSidebarOpen}
-        className="left-sidebar hidden lg:block"
-      />
+      <LeftSidebar />
 
       {/* Main Content */}
 
