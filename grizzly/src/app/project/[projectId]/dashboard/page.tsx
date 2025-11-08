@@ -14,6 +14,7 @@ import {
   useStoreApi,
   useNodesState,
   useEdgesState,
+  type NodeProps,
 } from "@xyflow/react";
 import { usePathname } from "next/navigation"; // For detecting route changes
 import { api } from "../../../../trpc/react";
@@ -148,17 +149,17 @@ const Home = () => {
 
   const nodeTypes = useMemo(
     () => ({
-      huggingFace: (props) => (
+      huggingFace: (props: NodeProps) => (
         <NodeContextMenu onDelete={() => onDeleteNode(props.id)}>
           <HuggingFaceNode {...props} />
         </NodeContextMenu>
       ),
-      dataset: (props) => (
+      dataset: (props: NodeProps) => (
         <NodeContextMenu onDelete={() => onDeleteNode(props.id)}>
           <HuggingFaceDatasetNode {...props} />
         </NodeContextMenu>
       ),
-      finetuning: (props) => (
+      finetuning: (props: NodeProps) => (
         <NodeContextMenu onDelete={() => onDeleteNode(props.id)}>
           <FinetuningNode {...props} />
         </NodeContextMenu>
