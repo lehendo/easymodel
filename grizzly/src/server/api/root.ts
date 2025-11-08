@@ -1,9 +1,9 @@
-import { jobRouter } from "@/server/api/routers/job";
-import { analyticsRouter } from "@/server/api/routers/analytics";
-import { projectRouter } from "@/server/api/routers/project";
-import { userRouter } from "@/server/api/routers/user";
+import { jobRouter } from "./routers/job";
+import { analyticsRouter } from "./routers/analytics";
+import { projectRouter } from "./routers/project";
+import { userRouter } from "./routers/user";
 
-import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
+import { createCallerFactory, createTRPCRouter } from "./trpc";
 
 /**
  * This is the primary router for your server.

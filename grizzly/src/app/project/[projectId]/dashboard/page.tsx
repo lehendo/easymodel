@@ -15,19 +15,19 @@ import {
   useEdgesState,
 } from "@xyflow/react";
 import { usePathname } from "next/navigation"; // For detecting route changes
-import { api } from "@/trpc/react";
-import LeftSidebar from "@/components/dashboard/LeftSidebar";
-import NodePalette from "@/components/react-flow/NodePalette";
-import HuggingFaceDatasetNode from "@/components/react-flow/HuggingFaceDatasetNode";
-import HuggingFaceNode from "@/components/react-flow/HuggingFaceNode";
-import FinetuningNode from "@/components/react-flow/FinetuningNode";
+import { api } from "../../../../trpc/react";
+import LeftSidebar from "../../../../components/dashboard/LeftSidebar";
+import NodePalette from "../../../../components/react-flow/NodePalette";
+import HuggingFaceDatasetNode from "../../../../components/react-flow/HuggingFaceDatasetNode";
+import HuggingFaceNode from "../../../../components/react-flow/HuggingFaceNode";
+import FinetuningNode from "../../../../components/react-flow/FinetuningNode";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuTrigger,
-} from "@/components/ui/context-menu";
-import DockComponent from "@/components/dashboard/dock";
+} from "../../../../components/ui/context-menu";
+import DockComponent from "../../../../components/dashboard/dock";
 import "@xyflow/react/dist/style.css";
 
 const ReactFlow = dynamic(

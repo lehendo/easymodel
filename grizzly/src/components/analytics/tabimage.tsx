@@ -1,7 +1,7 @@
-import  UnifiedPerplexityVisualization  from "@/components/analytics/perplexity";
+import  UnifiedPerplexityVisualization  from "./perplexity";
 import SemanticDriftAnalysis from "./semantic";
 import TokenEfficiencyVisualization from "./tokenefficiency";
-import UnifiedGQSVisualization from "@/components/analytics/gqs";
+import UnifiedGQSVisualization from "./gqs";
 import { HeatmapOverlay } from "./imageanalytic";
 
 

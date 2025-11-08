@@ -1,25 +1,25 @@
 "use client";
 
 import { useState } from "react";
-import { Dock, DockIcon } from "@/components/ui/dock";
+import { Dock, DockIcon } from "../../../../components/ui/dock";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "../../../../components/ui/tooltip";
 import { HomeIcon, ChartNoAxesColumn } from "lucide-react";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
-import { buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import LeftSidebar from "@/components/dashboard/LeftSidebar";
-import RightSidebar from "@/components/dashboard/RightSidebar";
-import { TextTab } from "@/components/analytics/tabtext";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ImageTab } from "@/components/analytics/tabimage";
+import { cn } from "../../../../lib/utils";
+import { buttonVariants } from "../../../../components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../../../../components/ui/card";
+import LeftSidebar from "../../../../components/dashboard/LeftSidebar";
+import RightSidebar from "../../../../components/dashboard/RightSidebar";
+import { TextTab } from "../../../../components/analytics/tabtext";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../../components/ui/tabs";
+import { ImageTab } from "../../../../components/analytics/tabimage";
 import { usePathname } from "next/navigation";
-import DockComponent from "@/components/dashboard/dock";
+import DockComponent from "../../../../components/dashboard/dock";
 
 const DashboardPage = () => {
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(false);

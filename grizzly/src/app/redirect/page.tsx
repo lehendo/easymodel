@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { api } from "@/trpc/react";
+import { api } from "../../trpc/react";
 
 export default function RedirectPage() {
   const router = useRouter();

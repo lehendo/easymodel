@@ -2,14 +2,14 @@
 
 import { TextSearch, Rocket, Loader } from "lucide-react";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "../ui/button";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@/components/ui/sheet";
+} from "../ui/sheet";
 import {
   Card,
   CardContent,
@@ -17,8 +17,8 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
+} from "../ui/card";
+import { Switch } from "../ui/switch";
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -27,7 +27,7 @@ import {
   AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogFooter,
-} from "@/components/ui/alert-dialog";
+} from "../ui/alert-dialog";
 
 export default function RightSidebar() {
   const [isLaunching, setIsLaunching] = useState(false);

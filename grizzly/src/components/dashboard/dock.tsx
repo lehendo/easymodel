@@ -1,17 +1,17 @@
 "use client";
 
 import { memo } from "react";
-import { Dock, DockIcon } from "@/components/ui/dock";
+import { Dock, DockIcon } from "../ui/dock";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "../ui/tooltip";
 import { HomeIcon, ChartNoAxesColumn } from "lucide-react";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
-import { buttonVariants } from "@/components/ui/button";
+import { cn } from "../../lib/utils";
+import { buttonVariants } from "../ui/button";
 import { usePathname } from "next/navigation";
 
 const DockComponent = memo(() => {

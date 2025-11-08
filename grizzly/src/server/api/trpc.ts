@@ -10,7 +10,7 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
 
-import { db } from "@/server/db"; // Prisma DB import
+import { db } from "../db"; // Prisma DB import
 import { NextRequest } from "next/server";
 
 /**

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { api } from "@/trpc/react";
+import { api } from "../trpc/react";
 
 export default function Home() {
   const router = useRouter();

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Handle, Position, useReactFlow } from "@xyflow/react";
 import * as hub from "@huggingface/hub"; // Import Hugging Face Hub library
 
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "../../hooks/use-toast";
 
 export default function HuggingFaceNode({ data, id }) {
   const [modelId, setModelId] = useState(data.modelId || "");

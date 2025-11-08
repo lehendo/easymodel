@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { Handle, Position, useReactFlow, useStore } from "@xyflow/react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
-import { api } from "@/trpc/react";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { useToast } from "../../hooks/use-toast";
+import { api } from "../../trpc/react";
 import { Loader2, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 import * as hub from "@huggingface/hub";
-import { env } from "@/env";
+import { env } from "../../env";
 
 export default function FinetuningNode({ data, id }: { data: any; id: string }) {
   const { getEdges, getNodes } = useReactFlow();

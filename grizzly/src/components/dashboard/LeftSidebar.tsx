@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useToast } from "@/hooks/use-toast"; // ShadCN toast
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { useToast } from "../../hooks/use-toast"; // ShadCN toast
+import { Button } from "../ui/button";
+import { ScrollArea } from "../ui/scroll-area";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+} from "../ui/collapsible";
 import {
   Dialog,
   DialogContent,
@@ -16,16 +16,16 @@ import {
   DialogTitle,
   DialogFooter,
   DialogOverlay,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+} from "../ui/dialog";
+import { Input } from "../ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "../ui/dropdown-menu";
 import { ChevronRight, ChevronLeft, MoreHorizontal } from "lucide-react";
-import { api } from "@/trpc/react";
+import { api } from "../../trpc/react";
 import { useRouter, usePathname } from "next/navigation"; // Import useRouter for navigation and usePathname
 
 interface Project {
