@@ -77,7 +77,7 @@ const Home = () => {
       try {
         const parsed = JSON.parse(savedNodes);
         if (Array.isArray(parsed)) {
-          setNodes(parsed);
+          setNodes(parsed as Node[]);
         }
       } catch (e) {
         console.error("Failed to parse saved nodes:", e);
