@@ -169,7 +169,7 @@ const Home = () => {
   );
 
   const getUpdatedConnection = useCallback(
-    (node) => {
+    (node: Node) => {
       const { nodeLookup } = store.getState();
       const internalNode = getInternalNode(node.id);
       const MIN_DISTANCE = 150;
