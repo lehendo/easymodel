@@ -209,7 +209,7 @@ const Home = () => {
           : `${node.id}-${closestNode.node.id}`,
         source: closeNodeIsSource ? closestNode.node.id : node.id,
         target: closeNodeIsSource ? node.id : closestNode.node.id,
-      };
+      } as any;
     },
     [store, getInternalNode],
   );
