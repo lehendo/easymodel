@@ -1,8 +1,6 @@
 {
-  "buildCommand": "npm run build",
-  "devCommand": "npm run dev",
+  "buildCommand": "npm install && npx prisma generate && npx prisma db push --accept-data-loss && npm run build",
+  "outputDirectory": ".next",
   "installCommand": "npm install",
-  "framework": "nextjs",
-  "outputDirectory": ".next"
+  "framework": "nextjs"
 }
-

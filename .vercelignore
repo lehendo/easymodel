@@ -1,0 +1,20 @@
+# Ignore Python backend files - only deploy Next.js frontend
+main.py
+main_ml.py
+main_simple.py
+easymodel/
+requirements.txt
+pyproject.toml
+poetry.lock
+tests/
+results/
+venv/
+venv312/
+*.py
+__pycache__/
+.pytest_cache/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
