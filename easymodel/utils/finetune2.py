@@ -6,11 +6,96 @@ from transformers import (
    Trainer,
    TrainingArguments,
    AutoModelForTokenClassification,
+   TrainerCallback,
 )
 from datasets import load_dataset
+from typing import Optional, Callable
 
 
-def finetune_model(base_model, datasets, output_space, api_key, task_type="classification", text_field=None, label_field=None, num_epochs=1, batch_size=8, max_length=128, subset_size=1000):
+class ProgressCallback(TrainerCallback):
+    """Callback to track training progress and emit updates."""
+    def __init__(self, progress_callback: Optional[Callable] = None, cancel_flag: Optional[Callable[[], bool]] = None):
+        self.progress_callback = progress_callback
+        self.cancel_flag = cancel_flag
+        self.total_steps = 0
+        self.current_step = 0
+        self.current_epoch = 0
+        self.total_epochs = 0
+        
+    def on_train_begin(self, args, state, control, **kwargs):
+        """Called at the beginning of training."""
+        if self.progress_callback:
+            self.progress_callback({
+                "stage": "initializing",
+                "progress": 0,
+                "message": "Initializing training..."
+            })
+    
+    def on_epoch_begin(self, args, state, control, **kwargs):
+        """Called at the beginning of each epoch."""
+        self.current_epoch = state.epoch + 1
+        self.total_epochs = args.num_train_epochs
+        if self.progress_callback:
+            self.progress_callback({
+                "stage": "training",
+                "progress": (self.current_epoch - 1) / self.total_epochs * 90,  # Reserve 10% for saving
+                "epoch": self.current_epoch,
+                "total_epochs": self.total_epochs,
+                "message": f"Starting epoch {self.current_epoch}/{self.total_epochs}..."
+            })
+    
+    def on_log(self, args, state, control, logs=None, **kwargs):
+        """Called when logs are written."""
+        # Check for cancellation
+        if self.cancel_flag and self.cancel_flag():
+            control.should_training_stop = True
+            if self.progress_callback:
+                self.progress_callback({
+                    "stage": "cancelled",
+                    "progress": 0,
+                    "message": "Training cancelled by user"
+                })
+            return
+        
+        if self.progress_callback and state.global_step > 0:
+            # Calculate progress within current epoch
+            epoch_progress = state.global_step / state.max_steps if state.max_steps > 0 else 0
+            # Overall progress: (epoch-1)/total_epochs + (epoch_progress/total_epochs) * 90%
+            overall_progress = ((self.current_epoch - 1) / self.total_epochs + epoch_progress / self.total_epochs) * 90
+            
+            loss = logs.get("loss", None) if logs else None
+            self.progress_callback({
+                "stage": "training",
+                "progress": overall_progress,
+                "epoch": self.current_epoch,
+                "total_epochs": self.total_epochs,
+                "step": state.global_step,
+                "loss": loss,
+                "message": f"Epoch {self.current_epoch}/{self.total_epochs}, Step {state.global_step}/{state.max_steps}" + (f", Loss: {loss:.4f}" if loss else "")
+            })
+    
+    def on_epoch_end(self, args, state, control, **kwargs):
+        """Called at the end of each epoch."""
+        if self.progress_callback:
+            self.progress_callback({
+                "stage": "training",
+                "progress": self.current_epoch / self.total_epochs * 90,
+                "epoch": self.current_epoch,
+                "total_epochs": self.total_epochs,
+                "message": f"Completed epoch {self.current_epoch}/{self.total_epochs}"
+            })
+    
+    def on_train_end(self, args, state, control, **kwargs):
+        """Called at the end of training."""
+        if self.progress_callback:
+            self.progress_callback({
+                "stage": "saving",
+                "progress": 90,
+                "message": "Training completed. Saving model..."
+            })
+
+
+def finetune_model(base_model, datasets, output_space, api_key, task_type="classification", text_field=None, label_field=None, num_epochs=1, batch_size=8, max_length=128, subset_size=1000, progress_callback: Optional[Callable] = None, cancel_flag: Optional[Callable[[], bool]] = None):
    """
    Fine-tune a Hugging Face model using PyTorch.
 
@@ -27,6 +112,8 @@ def finetune_model(base_model, datasets, output_space, api_key, task_type="class
        batch_size (int): Batch size for training.
        max_length (int): Maximum token length for inputs.
        subset_size (int): Size of the dataset subset to use.
+       progress_callback (Optional[Callable]): Optional callback function to receive progress updates.
+       cancel_flag (Optional[Callable[[], bool]]): Optional function that returns True if training should be cancelled.
    """
    # Load the tokenizer and model dynamically based on the task
    tokenizer = AutoTokenizer.from_pretrained(base_model)
@@ -128,19 +215,39 @@ def finetune_model(base_model, datasets, output_space, api_key, task_type="class
    )
 
 
+   # Set up callbacks
+   callbacks = []
+   if progress_callback:
+       callbacks.append(ProgressCallback(progress_callback=progress_callback, cancel_flag=cancel_flag))
+
    # Set up trainer
    trainer = Trainer(
        model=model,
        args=training_args,
        train_dataset=tokenized_train,
        eval_dataset=tokenized_val,
-       tokenizer=tokenizer
+       tokenizer=tokenizer,
+       callbacks=callbacks
    )
-
 
    # Train the model
    trainer.train()
 
+   # Emit progress update for saving
+   if progress_callback:
+       progress_callback({
+           "stage": "saving",
+           "progress": 95,
+           "message": "Pushing model to Hugging Face Hub..."
+       })
 
    # Save the model to Hugging Face Hub
    trainer.push_to_hub()
+   
+   # Emit final progress update
+   if progress_callback:
+       progress_callback({
+           "stage": "completed",
+           "progress": 100,
+           "message": "Fine-tuning completed successfully!"
+       })

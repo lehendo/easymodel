@@ -1,285 +1,218 @@
 # EasyModel
 
-A comprehensive model fine-tuning and evaluation platform that provides powerful tools for training, analyzing, and comparing language models.
+EasyModel is a comprehensive no-code platform for fine-tuning and evaluating machine learning models, specifically designed for Hugging Face models and datasets. The platform combines a powerful FastAPI backend with an intuitive Next.js frontend featuring a visual workflow interface built with React Flow.
 
-## Features
+## Overview
+
+EasyModel provides a complete solution for machine learning practitioners who want to fine-tune models without writing code. Users can visually connect model and dataset nodes, configure training parameters through an intuitive interface, and monitor training progress in real-time. The platform supports multiple task types including text generation, classification, sequence-to-sequence, and token classification.
+
+## Architecture
+
+The project consists of two main components:
+
+**Backend (FastAPI)**: A Python-based REST API that handles model fine-tuning, progress tracking via Server-Sent Events (SSE), and comprehensive analytics. The backend integrates with Hugging Face Hub for model management and supports real-time training cancellation.
+
+**Frontend (Next.js)**: A React-based web application featuring a visual node-based interface where users can drag and drop model and dataset nodes, connect them to a fine-tuning schema node, configure parameters, and initiate training with a single click. The frontend provides real-time progress updates, analytics visualization, and project management.
+
+## Key Features
+
+### Visual Workflow Interface
+- Drag-and-drop node-based interface for creating training workflows
+- Support for Hugging Face model and dataset nodes
+- Automatic column inference from datasets
+- Single-click training initiation without deployment steps
+- Real-time connection status indicators
 
 ### Model Fine-tuning
-- Support for multiple task types: classification, sequence-to-sequence, text generation, and token classification
+- Support for multiple task types: generation, classification, sequence-to-sequence, token classification
+- Configurable training parameters: epochs, batch size, sequence length, subset size
 - Automatic dataset field detection
-- Configurable training parameters (epochs, batch size, sequence length)
-- Integration with Hugging Face Hub for model sharing
+- Integration with Hugging Face Hub for model pushing
+- Real-time progress tracking with progress bars and epoch information
+- Training cancellation capability
 
-### Comprehensive Analytics
-- **GQS Metrics**: Grammar, Quality, and Semantic evaluation
-- **Perplexity Analysis**: Language model performance assessment
-- **Semantic Similarity**: Measure semantic drift and coherence
-- **Token Efficiency**: Analyze input/output token ratios for different tasks
-- **Comparative Analysis**: Compare multiple models side-by-side
+### Analytics and Evaluation
+- Comprehensive model analytics after training completion
+- Perplexity analysis for language models
+- Accuracy, F1 score, and loss metrics
+- Automatic analytics card display upon training completion
 
-### Easy-to-Use API
-- RESTful API endpoints for all operations
-- Automatic model and tokenizer caching
-- Comprehensive error handling and logging
-- Health check endpoints
+### Project Management
+- Multiple project support with persistent storage
+- Local storage and database synchronization
+- Project creation, editing, and deletion
+- Automatic "Untitled Project" creation for new users
 
-## Quick Start
+## Technology Stack
 
-### Installation
+**Backend:** FastAPI, PyTorch, Transformers, Hugging Face Hub, Server-Sent Events, SQLite (via Prisma)
+
+**Frontend:** Next.js 15, React 18, React Flow, tRPC, Prisma, Tailwind CSS, TypeScript
+
+## Installation
+
+### Prerequisites
+- Python 3.12 (for backend ML dependencies)
+- Node.js 18+ and npm
+- Hugging Face API token
+
+### Backend Setup
 
 ```bash
 # Clone the repository
 git clone https://github.com/lehendo/easymodel.git
 cd easymodel
 
-# Install dependencies
-poetry install
+# Create Python 3.12 virtual environment
+python3.12 -m venv venv312
+source venv312/bin/activate  # On Windows: venv312\Scripts\activate
 
-# Set up environment variables (required for Hugging Face Hub integration)
-# Create a .env file in the project root:
+# Install dependencies
+pip install -r requirements.txt
+
+# Set up environment variables
 echo "HUGGINGFACE_API_KEY=your-huggingface-api-key-here" > .env
-# Or export it directly:
-export HUGGINGFACE_API_KEY=your-huggingface-api-key-here
 # Get your API token from https://huggingface.co/settings/tokens
 
-# Run the application
-poetry run python main.py
+# Run the backend server
+python main.py
 ```
 
-### Environment Variables
+The backend will start on `http://localhost:8000`
 
-The application uses environment variables to securely store API keys and tokens. **Never commit these to version control.**
-
-Required environment variables:
-- `HUGGINGFACE_API_KEY` or `HF_TOKEN`: Your Hugging Face API token for model pushing and authentication
-  - Get your token from: https://huggingface.co/settings/tokens
-  - The token is required for fine-tuning operations that push models to the Hugging Face Hub
-
-**Security Note**: The `.env` file and all token files are automatically ignored by git. Always use environment variables for sensitive credentials.
-
-### API Usage
-
-#### Fine-tune a Model (you might want to alter the parameters depending on the type of model and dataset)
-
-**Recommended (using environment variable):**
-```bash
-# Set the environment variable first
-export HUGGINGFACE_API_KEY=your-huggingface-api-key
-
-# Then make the request (api_key is optional if environment variable is set)
-curl -X POST "http://localhost:8000/finetuning/" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model_name": "gpt2",
-    "datasets": ["squad"],
-    "output_space": "my-finetuned-model",
-    "num_epochs": 3,
-    "batch_size": 8,
-    "max_length": 128,
-    "subset_size": 1000,
-    "task_type": "generation",
-    "text_field": "text"
-  }'
-```
-
-**Alternative (passing api_key in request - not recommended for production):**
-```bash
-curl -X POST "http://localhost:8000/finetuning/" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model_name": "gpt2",
-    "datasets": ["squad"],
-    "output_space": "my-finetuned-model",
-    "num_epochs": 3,
-    "batch_size": 8,
-    "max_length": 128,
-    "subset_size": 1000,
-    "api_key": "your-huggingface-api-key",
-    "task_type": "generation",
-    "text_field": "text"
-  }'
-```
-
-**Note**: For security, it's recommended to use the `HUGGINGFACE_API_KEY` or `HF_TOKEN` environment variable instead of passing the API key in the request body.
-
-#### Run Model Analytics
+### Frontend Setup
 
 ```bash
-curl -X POST "http://localhost:8000/analytics/analytics" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "dataset_url": "squad",
-    "model_name": "gpt2",
-    "task_type": "text_generation"
-  }'
+# Navigate to frontend directory
+cd grizzly
+
+# Install dependencies
+npm install
+
+# Set up environment variables
+echo "NEXT_PUBLIC_EASYMODEL_API_URL=http://localhost:8000" > .env.local
+echo "DATABASE_URL=file:./prisma/dev.db" >> .env.local
+
+# Generate Prisma client and run migrations
+npx prisma generate
+npx prisma migrate dev
+
+# Start the development server
+npm run dev
 ```
 
-#### Compare Two Models
+The frontend will start on `http://localhost:3000`
 
-```bash
-curl -X POST "http://localhost:8000/analytics/compare" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model1_name": "gpt2",
-    "model2_name": "gpt2-medium",
-    "dataset_url": "squad"
-  }'
-```
+## Environment Variables
+
+### Backend (.env)
+- `HUGGINGFACE_API_KEY` or `HF_TOKEN`: Your Hugging Face API token (required for fine-tuning)
+- `ALLOWED_ORIGINS`: Comma-separated list of allowed CORS origins (optional, defaults to localhost)
+
+### Frontend (.env.local)
+- `NEXT_PUBLIC_EASYMODEL_API_URL`: Backend API URL (default: http://localhost:8000)
+- `DATABASE_URL`: SQLite database path (default: file:./prisma/dev.db)
+
+**Security Note**: Never commit `.env` files to version control. They are automatically ignored by git.
+
+## Usage
+
+### Starting Training
+
+1. Open the frontend application in your browser
+2. Create a new project or select an existing one
+3. Drag a "HuggingFace Model" node onto the canvas and enter a model name (e.g., "gpt2")
+4. Drag a "HuggingFace Dataset" node onto the canvas and enter a dataset name (e.g., "squad")
+5. Drag a "Finetuning Schema" node onto the canvas
+6. Connect the model and dataset nodes to the finetuning node (top or bottom connectors)
+7. Configure training parameters in the finetuning node
+8. Click "Train Model" to start training
+
+### Training Parameters
+
+- **Output Model Name**: Name for your fine-tuned model on Hugging Face Hub
+- **Epochs**: Number of training epochs
+- **Batch Size**: Training batch size
+- **Max Length**: Maximum sequence length
+- **Subset Size**: Number of samples to use from the dataset
+- **Task Type**: Type of ML task (generation, classification, seq2seq, token_classification)
+- **Text Field**: Name of the text column in your dataset
+- **Label Field**: Name of the label column (required for non-generation tasks)
+
+### Monitoring Progress
+
+During training, you'll see real-time progress bars, current epoch information, progress messages, and a cancel button. Upon completion, an analytics card will display relevant metrics.
 
 ## API Endpoints
 
-### Fine-tuning Endpoints
+### Fine-tuning
 - `POST /finetuning/` - Start a fine-tuning job
+- `GET /finetuning/progress/{job_id}` - Stream training progress (SSE)
+- `POST /finetuning/cancel/{job_id}` - Cancel a running training job
 
-### Analytics Endpoints
+### Analytics
 - `POST /analytics/analytics` - Run comprehensive model analytics
 - `POST /analytics/evaluate` - Evaluate a single model
 - `POST /analytics/compare` - Compare two models
 
-### Utility Endpoints
-- `GET /` - API information
-- `GET /health` - Health check
+### Utility
+- `GET /health` - Health check endpoint
+
+## Deployment
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.
+
+### Quick Summary
+
+**Frontend (Vercel)**: Push code to GitHub, import in Vercel with root directory set to `grizzly`, configure environment variables (`NEXT_PUBLIC_EASYMODEL_API_URL` and `DATABASE_URL`), and deploy.
+
+**Backend (Railway/Render/etc.)**: Deploy Python backend to Railway, Render, or similar service, set `HUGGINGFACE_API_KEY`, update frontend's `NEXT_PUBLIC_EASYMODEL_API_URL` to point to backend URL, and configure backend CORS to allow your Vercel domain.
+
+**Important**: The Python backend with ML dependencies cannot run on Vercel due to size limitations. Deploy it separately to a service that supports large Python applications.
 
 ## Project Structure
 
 ```
 easymodel/
-├── main.py                          # FastAPI application entry point
-├── main_ml.py                       # ML-enabled FastAPI application
-├── main_simple.py                   # Simple FastAPI app (no ML dependencies)
-├── easymodel/                       # Main package
-│   ├── endpoints/
-│   │   ├── finetuning.py           # Fine-tuning API endpoints
-│   │   └── analytics.py            # Analytics API endpoints
-│   └── utils/
-│       ├── finetune2.py            # Core fine-tuning logic
-│       └── text_analytics/
-│           ├── gqs.py              # Grammar, Quality, Semantic metrics
-│           ├── perplexity.py       # Perplexity analysis
-│           ├── semantic.py         # Semantic similarity and drift
-│           ├── tokenefficiency.py  # Token efficiency metrics
-│           └── textanalytics.py    # Analytics orchestration
-├── tests/                           # Comprehensive test suite
-│   ├── test_analytics.py           # Core analytics tests
-│   ├── test_evaluate.py            # Model evaluation tests
-│   ├── test_finetune_local.py      # Fine-tuning infrastructure tests
-│   ├── test_finetune.py            # Full fine-tuning tests
-│   ├── test_direct.py              # Direct endpoint tests
-│   ├── test_endpoint.py            # HTTP endpoint tests
-│   └── run_all_tests.py            # Automated test runner
-├── pyproject.toml                   # Poetry configuration
-└── README.md                       # This comprehensive documentation
+├── main.py                    # FastAPI backend entry point
+├── requirements.txt           # Python dependencies
+├── easymodel/                 # Backend package
+│   ├── endpoints/            # API endpoints
+│   └── utils/                 # Core logic and analytics
+├── grizzly/                   # Next.js frontend
+│   ├── src/                   # Source code
+│   └── prisma/                # Database schema
+└── README.md                  # This file
 ```
-
-## Analytics Features
-
-### GQS Metrics
-- **Grammar**: Evaluates grammatical correctness using RoBERTa-based models
-- **Fluency**: Measures text fluency using perplexity scores
-- **Coherence**: Analyzes semantic coherence within text
-- **Relevance**: Computes semantic similarity between predictions and references
-
-### Perplexity Analysis
-- Language model performance evaluation
-- Training and validation perplexity tracking
-- Batch processing for multiple texts
-
-### Semantic Analysis
-- Semantic similarity computation
-- Semantic drift detection during fine-tuning
-- Coherence analysis for text sequences
-
-### Token Efficiency
-- Summarization efficiency
-- Question-answering efficiency
-- Translation efficiency
-- Paraphrasing efficiency
-- Code generation efficiency
 
 ## Development
 
-### Adding New Analytics
-1. Create new functions in the appropriate `text_analytics` module
-2. Update `textanalytics.py` to include the new functionality
-3. Add corresponding API endpoints in `analytics.py`
-
-### Adding New Task Types
-1. Update the `finetune_model` function in `finetune2.py`
-2. Add appropriate model loading logic
-3. Update the API schema in `finetuning.py`
-
-## Testing
-
-EasyModel includes a comprehensive test suite to verify all functionality.
-
 ### Running Tests
 
-#### Run All Tests
 ```bash
-python tests/run_all_tests.py
+# Backend tests
+cd tests && python test_analytics.py
+
+# Frontend type checking
+cd grizzly && npm run typecheck
 ```
 
-#### Run Individual Tests
+### Database Management
+
 ```bash
-cd tests
-python test_analytics.py      # Test core analytics functionality
-python test_evaluate.py       # Test model evaluation endpoints
-python test_finetune_local.py # Test fine-tuning infrastructure
-python test_direct.py         # Test analytics endpoint directly
+cd grizzly
+npx prisma studio  # Open Prisma Studio
+npx prisma migrate dev  # Create new migration
 ```
-
-### Test Files
-
-- **`test_analytics.py`** - Tests the core analytics functionality (perplexity, GQS metrics, semantic analysis)
-- **`test_evaluate.py`** - Tests model evaluation endpoints and cross-dataset compatibility
-- **`test_finetune_local.py`** - Tests fine-tuning infrastructure without requiring Hugging Face Hub
-- **`test_finetune.py`** - Tests full fine-tuning endpoint (requires valid HF API key)
-- **`test_direct.py`** - Tests analytics endpoint directly without HTTP server
-- **`test_endpoint.py`** - Tests API endpoints via HTTP requests (requires running server)
-- **`run_all_tests.py`** - Automated test runner that executes all tests and reports results
-
-### Test Categories
-
-#### ✅ **Core Functionality Tests** (All Passing)
-- **Analytics Function**: Core text analytics and metrics computation
-- **Model Evaluation**: Model assessment and comparison capabilities
-- **Fine-tuning Infrastructure**: Training pipeline setup and model loading
-- **Analytics Endpoint**: API endpoint functionality and data processing
-
-#### ⚠️ **External Service Tests**
-- **Fine-tuning with HF Hub**: Requires valid Hugging Face API key for model pushing
-- **HTTP Endpoint Tests**: Requires running FastAPI server
-
-### Test Results
-
-All core functionality tests are passing:
-- ✅ Analytics processing (perplexity, GQS, semantic analysis)
-- ✅ Model evaluation (cross-dataset compatibility)
-- ✅ Fine-tuning infrastructure (model loading, tokenization, training setup)
-- ✅ API endpoints (request handling, response formatting)
-
-### Test Environment
-
-- Tests are designed to work with the conda environment (`easymodel`)
-- Requires specific datasets (ag_news, squad, etc.) for comprehensive testing
-- Fine-tuning tests work locally but require API keys for HF Hub integration
-- All tests include proper error handling and timeout protection
 
 ## Contributing
 
-If you work like to contribute to this project, feel free to do so! What's listed below tells you how to do so:
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+Contributions are welcome! Fork the repository, create a feature branch, make your changes, add tests if applicable, and submit a pull request.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License.
 
 ## Acknowledgments
 
-- Built with FastAPI, Transformers, and Hugging Face libraries
-- Inspired by the need for comprehensive model evaluation tools
+Built with FastAPI, Next.js, React Flow, PyTorch, Transformers, and Hugging Face libraries.

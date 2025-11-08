@@ -1,12 +1,27 @@
 from fastapi import APIRouter, HTTPException
-from transformers import AutoTokenizer, AutoModelForCausalLM
-from easymodel.utils.text_analytics.textanalytics import run_all_analytics, run_model_evaluation, run_comparative_analysis
 from pydantic import BaseModel
 import logging
+
+# Try to import ML dependencies, but don't fail if they're not available
+try:
+    from transformers import AutoTokenizer, AutoModelForCausalLM
+    from easymodel.utils.text_analytics.textanalytics import run_all_analytics, run_model_evaluation, run_comparative_analysis
+    ANALYTICS_AVAILABLE = True
+except ImportError as e:
+    ANALYTICS_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.warning(f"Analytics not available: {e}")
+    def run_all_analytics(*args, **kwargs):
+        raise RuntimeError("ML dependencies not available. Please install PyTorch and transformers.")
+    def run_model_evaluation(*args, **kwargs):
+        raise RuntimeError("ML dependencies not available. Please install PyTorch and transformers.")
+    def run_comparative_analysis(*args, **kwargs):
+        raise RuntimeError("ML dependencies not available. Please install PyTorch and transformers.")
 
 # Init
 router = APIRouter()
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 # Cache for models and tokenizers to avoid reloading frequently
 model_cache = {}
@@ -26,6 +41,8 @@ class ComparativeAnalysisRequest(BaseModel):
 
 @router.post("/analytics")
 async def analytics_endpoint(data: AnalyticsRequest):
+    if not ANALYTICS_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Analytics not available. ML dependencies not installed.")
     try:
         # Load/fetch model and tokenizer from cache
         if data.model_name not in model_cache:
