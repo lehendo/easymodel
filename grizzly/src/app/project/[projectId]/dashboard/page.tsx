@@ -7,6 +7,7 @@ import {
   Controls,
   addEdge,
   Node,
+  Edge,
   Connection,
   ReactFlowProvider,
   useReactFlow,
@@ -49,8 +50,8 @@ const NodeContextMenu = ({ children, onDelete }: { children: React.ReactNode; on
 const Home = () => {
   const pathname = usePathname();
   const projectId = pathname?.split("/")[2]; // Extract projectId from URL
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [lastSyncTime, setLastSyncTime] = useState(Date.now());
 
   const reactFlowWrapper = useRef<HTMLDivElement | null>(null);
