@@ -76,6 +76,7 @@ export const jobRouter = createTRPCRouter({
         taskType: z.enum(["generation", "classification", "seq2seq", "token_classification"]),
         textField: z.string().min(1),
         labelField: z.string().optional(),
+        apiKey: z.string().min(1).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -105,37 +106,62 @@ export const jobRouter = createTRPCRouter({
       }
 
       // Create job record first
+      const { apiKey, ...requestWithoutApiKey } = input;
+      const sanitizedRequest = {
+        ...requestWithoutApiKey,
+        apiKeyProvided: Boolean(apiKey),
+      };
+
       const job = await ctx.db.job.create({
         data: {
           type: "FINETUNING",
           clerkUID: defaultUser.clerkUID,
           projectId: input.projectId,
-          request: JSON.stringify(input), // Store as JSON string for SQLite
+          request: JSON.stringify(sanitizedRequest), // Store as JSON string for SQLite without secrets
           status: "PENDING",
         },
       });
 
       try {
         // Call easymodel backend API
-        const apiUrl = `${env.EASYMODEL_API_URL}/finetuning/`;
-        const response = await fetch(apiUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model_name: input.modelName,
-            datasets: input.datasets,
-            output_space: input.outputSpace,
-            num_epochs: input.numEpochs,
-            batch_size: input.batchSize,
-            max_length: input.maxLength,
-            subset_size: input.subsetSize,
-            task_type: input.taskType,
-            text_field: input.textField,
-            label_field: input.labelField,
-          }),
-        });
+        const baseApiUrl = env.EASYMODEL_API_URL.replace(/\/$/, "");
+        if (process.env.NODE_ENV === "production" && baseApiUrl.includes("localhost")) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message:
+              "EASYMODEL_API_URL points to localhost in production. Set it to your deployed FastAPI backend URL.",
+          });
+        }
+
+        const apiUrl = `${baseApiUrl}/finetuning/`;
+        let response: Response;
+        try {
+          response = await fetch(apiUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model_name: input.modelName,
+              datasets: input.datasets,
+              output_space: input.outputSpace,
+              num_epochs: input.numEpochs,
+              batch_size: input.batchSize,
+              max_length: input.maxLength,
+              subset_size: input.subsetSize,
+              task_type: input.taskType,
+              text_field: input.textField,
+              label_field: input.labelField,
+              api_key: apiKey,
+            }),
+          });
+        } catch (error) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: `Failed to reach backend at ${apiUrl}. ${error instanceof Error ? error.message : ""}`.trim(),
+            cause: error instanceof Error ? error : undefined,
+          });
+        }
 
         if (!response.ok) {
           const errorText = await response.text();
@@ -149,7 +175,7 @@ export const jobRouter = createTRPCRouter({
           where: { id: job.id },
           data: {
             status: "RUNNING",
-            request: JSON.stringify({ ...input, backendJobId: result.job_id }), // Store backend job_id
+            request: JSON.stringify({ ...sanitizedRequest, backendJobId: result.job_id }), // Store backend job_id without secrets
           },
         });
 
@@ -165,7 +191,10 @@ export const jobRouter = createTRPCRouter({
           where: { id: job.id },
           data: {
             status: "FAILED",
-            request: JSON.stringify({ ...input, error: error instanceof Error ? error.message : String(error) }), // Store as JSON string for SQLite
+            request: JSON.stringify({
+              ...sanitizedRequest,
+              error: error instanceof Error ? error.message : String(error),
+            }), // Store as JSON string for SQLite without secrets
           },
         });
 

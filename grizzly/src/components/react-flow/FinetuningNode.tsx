@@ -21,6 +21,7 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
   const [taskType, setTaskType] = useState(data.taskType || "generation");
   const [textField, setTextField] = useState(data.textField || "");
   const [labelField, setLabelField] = useState(data.labelField || "");
+  const [huggingFaceToken, setHuggingFaceToken] = useState("");
   const [trainingStatus, setTrainingStatus] = useState<"idle" | "training" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [isInferringColumns, setIsInferringColumns] = useState(false);
@@ -32,6 +33,31 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
   const [totalEpochs, setTotalEpochs] = useState<number | null>(null);
   const [backendJobId, setBackendJobId] = useState<string | null>(null);
   const [eventSource, setEventSource] = useState<EventSource | null>(null);
+
+  // Persist HF token only for current browser session (never stored in database)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const storedToken = window.sessionStorage.getItem("easymodel:hfToken");
+    if (storedToken) {
+      setHuggingFaceToken(storedToken);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (huggingFaceToken) {
+      window.sessionStorage.setItem("easymodel:hfToken", huggingFaceToken);
+    } else {
+      window.sessionStorage.removeItem("easymodel:hfToken");
+    }
+  }, [huggingFaceToken]);
+
+  const sanitizedApiBaseUrl = env.NEXT_PUBLIC_EASYMODEL_API_URL
+    ? env.NEXT_PUBLIC_EASYMODEL_API_URL.replace(/\/$/, "")
+    : undefined;
+  const isHostedEnvironment =
+    typeof window !== "undefined" &&
+    !["localhost", "127.0.0.1"].includes(window.location.hostname);
 
   // Subscribe to edges and nodes changes to make connection detection reactive
   const edges = useStore((store) => store.edges);
@@ -177,11 +203,22 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
 
   // Connect to SSE progress stream
   const connectToProgressStream = (jobId: string) => {
+    const apiUrl = sanitizedApiBaseUrl || (isHostedEnvironment ? undefined : "http://localhost:8000");
+    if (!apiUrl) {
+      setTrainingStatus("error");
+      setErrorMessage("Backend URL is not configured. Please set NEXT_PUBLIC_EASYMODEL_API_URL to your backend.");
+      toast({
+        variant: "destructive",
+        title: "Backend Not Configured",
+        description: "Set NEXT_PUBLIC_EASYMODEL_API_URL to a reachable backend before starting training.",
+      });
+      return;
+    }
+
     setTrainingStatus("training");
     setTrainingProgress(0);
     setProgressMessage("Connecting to training stream...");
-    
-    const apiUrl = env.NEXT_PUBLIC_EASYMODEL_API_URL || "http://localhost:8000";
+
     const es = new EventSource(`${apiUrl}/finetuning/progress/${jobId}`);
     setEventSource(es);
 
@@ -346,7 +383,8 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
   // Fetch analytics after training
   const fetchAnalytics = async () => {
     try {
-      const apiUrl = env.NEXT_PUBLIC_EASYMODEL_API_URL || "http://localhost:8000";
+      const apiUrl = sanitizedApiBaseUrl || (isHostedEnvironment ? undefined : "http://localhost:8000");
+      if (!apiUrl) return;
       const analyticsResponse = await fetch(`${apiUrl}/analytics`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -420,6 +458,48 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
       return;
     }
 
+    const numericFields = [
+      { value: numEpochs, label: "Epochs" },
+      { value: batchSize, label: "Batch size" },
+      { value: maxLength, label: "Max length" },
+      { value: subsetSize, label: "Subset size" },
+    ];
+
+    const invalidNumericField = numericFields.find(
+      (field) => !Number.isFinite(field.value) || field.value <= 0,
+    );
+
+    if (invalidNumericField) {
+      toast({
+        variant: "destructive",
+        title: "Validation Error",
+        description: `${invalidNumericField.label} must be greater than 0.`,
+      });
+      return;
+    }
+
+    if (!huggingFaceToken.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Hugging Face Token Required",
+        description: "Provide your Hugging Face API token to train with your own account.",
+      });
+      return;
+    }
+
+    if (
+      isHostedEnvironment &&
+      (!sanitizedApiBaseUrl || sanitizedApiBaseUrl.includes("localhost"))
+    ) {
+      toast({
+        variant: "destructive",
+        title: "Backend URL Missing",
+        description:
+          "Set NEXT_PUBLIC_EASYMODEL_API_URL to your deployed backend so training can reach it.",
+      });
+      return;
+    }
+
     if (!projectId) {
       toast({
         variant: "destructive",
@@ -447,6 +527,7 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
       taskType: taskType as "generation" | "classification" | "seq2seq" | "token_classification",
       textField: textField.trim(),
       labelField: labelField.trim() || undefined,
+      apiKey: huggingFaceToken.trim(),
     });
   };
   
@@ -519,6 +600,22 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
 
       {/* Configuration Form */}
       <div className="space-y-2">
+        <div>
+          <label className="mb-1 block text-xs font-semibold">
+            Hugging Face API Token
+          </label>
+          <Input
+            type="password"
+            value={huggingFaceToken}
+            onChange={(e) => setHuggingFaceToken(e.target.value)}
+            placeholder="hf_..."
+            className="h-8 text-xs"
+            disabled={trainingStatus === "training"}
+          />
+          <p className="mt-1 text-[10px] text-muted-foreground">
+            Stored only in this browser session to run training under your Hugging Face account.
+          </p>
+        </div>
         <div>
           <label className="mb-1 block text-xs font-semibold">Output Model Name</label>
           <Input
