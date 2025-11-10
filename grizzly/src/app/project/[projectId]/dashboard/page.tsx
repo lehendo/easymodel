@@ -1,10 +1,7 @@
 "use client";
 
-// Force dynamic rendering
-export const dynamic = 'force-dynamic';
-
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import dynamic from "next/dynamic";
+import nextDynamic from "next/dynamic";
 import {
   Background,
   Controls,
@@ -35,7 +32,9 @@ import {
 import DockComponent from "../../../../components/dashboard/dock";
 import "@xyflow/react/dist/style.css";
 
-const ReactFlow = dynamic(
+export const dynamic = "force-dynamic";
+
+const ReactFlow = nextDynamic(
   () => import("@xyflow/react").then((mod) => mod.ReactFlow),
   { ssr: false },
 );

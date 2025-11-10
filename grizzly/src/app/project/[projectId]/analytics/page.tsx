@@ -1,8 +1,5 @@
 "use client";
 
-// Force dynamic rendering
-export const dynamic = 'force-dynamic';
-
 import { useState } from "react";
 import { Dock, DockIcon } from "../../../../components/ui/dock";
 import {
@@ -23,6 +20,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../../components
 import { ImageTab } from "../../../../components/analytics/tabimage";
 import { usePathname } from "next/navigation";
 import DockComponent from "../../../../components/dashboard/dock";
+
+export const dynamic = "force-dynamic";
 
 const DashboardPage = () => {
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(false);
