@@ -9,6 +9,9 @@ import { ThemeProvider } from "../components/theme-provider";
 
 import { Toaster } from "../components/ui/toaster";
 
+// Ensure the root layout is treated as dynamic to avoid build-time data fetching
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "EasyModel Studio",
   description: "No-code model fine-tuning with React Flow",
