@@ -5,6 +5,10 @@ import { env } from "../../../../env";
 import { appRouter } from "../../../../server/api/root";
 import { createTRPCContext } from "../../../../server/api/trpc";
 
+// Force dynamic rendering for API route
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 /**
  * This wraps the `createTRPCContext` helper and provides the required context for the tRPC API when
  * handling an HTTP request (e.g. when you make requests from Client Components).

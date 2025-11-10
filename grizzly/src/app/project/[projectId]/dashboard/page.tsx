@@ -1,5 +1,8 @@
 "use client";
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
 import {
