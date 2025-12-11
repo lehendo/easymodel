@@ -201,6 +201,96 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
     },
   });
 
+  // Handle progress updates from SSE stream
+  const handleProgressUpdate = (update: any) => {
+    try {
+      // Update progress
+      if (update.progress !== undefined) {
+        setTrainingProgress(update.progress);
+      }
+      
+      // Update message
+      if (update.message) {
+        setProgressMessage(update.message);
+      }
+      
+      // Update epoch info
+      if (update.epoch) {
+        setCurrentEpoch(update.epoch);
+      }
+      if (update.total_epochs) {
+        setTotalEpochs(update.total_epochs);
+      }
+      
+      // Handle completion
+      if (update.stage === "completed") {
+        setTrainingStatus("success");
+        if (eventSource) {
+          eventSource.close();
+          setEventSource(null);
+        }
+        
+        toast({
+          title: "Training Completed",
+          description: update.message || "Fine-tuning completed successfully.",
+        });
+        
+        // Fetch analytics after training completes
+        fetchAnalytics();
+      }
+      
+      // Handle cancellation
+      if (update.stage === "cancelled" || update.stage === "cancelling") {
+        setTrainingStatus("idle");
+        setProgressMessage("");
+        setTrainingProgress(0);
+        setTrainingStartTime(null);
+        setCurrentEpoch(null);
+        setTotalEpochs(null);
+        setBackendJobId(null);
+        if (eventSource) {
+          eventSource.close();
+          setEventSource(null);
+        }
+        
+        toast({
+          title: "Training Cancelled",
+          description: update.message || "Training has been cancelled.",
+        });
+      }
+      
+      // Handle errors
+      if (update.stage === "error") {
+        setTrainingStatus("error");
+        setErrorMessage(update.message || "Training failed");
+        setTrainingProgress(0);
+        setTrainingStartTime(null);
+        setCurrentEpoch(null);
+        setTotalEpochs(null);
+        setProgressMessage("");
+        setBackendJobId(null);
+        if (eventSource) {
+          eventSource.close();
+          setEventSource(null);
+        }
+        
+        toast({
+          variant: "destructive",
+          title: "Training Failed",
+          description: update.message || "Training failed.",
+        });
+        
+        // Auto-reset error state after 5 seconds
+        setTimeout(() => {
+          setTrainingStatus("idle");
+          setErrorMessage("");
+        }, 5000);
+      }
+    } catch (error) {
+      console.error("Error handling progress update:", error);
+    }
+  };
+
   // Connect to SSE progress stream
   const connectToProgressStream = (jobId: string) => {
     const apiUrl = sanitizedApiBaseUrl || (isHostedEnvironment ? undefined : "http://localhost:8000");
@@ -219,110 +309,66 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
     setTrainingProgress(0);
     setProgressMessage("Connecting to training stream...");
 
-    // Add ngrok-skip-browser-warning to bypass ngrok's warning page
-    const sseUrl = new URL(`${apiUrl}/finetuning/progress/${jobId}`);
-    sseUrl.searchParams.set('ngrok-skip-browser-warning', 'true');
+    // Use fetch with streaming instead of EventSource to support custom headers
+    const sseUrl = `${apiUrl}/finetuning/progress/${jobId}`;
     
-    const es = new EventSource(sseUrl.toString());
-    setEventSource(es);
-
-    es.onmessage = (event) => {
-      try {
-        const update = JSON.parse(event.data);
-        
-        // Update progress
-        if (update.progress !== undefined) {
-          setTrainingProgress(update.progress);
+    // Create AbortController for cleanup
+    const abortController = new AbortController();
+    
+    fetch(sseUrl, {
+      headers: {
+        'Accept': 'text/event-stream',
+        'ngrok-skip-browser-warning': 'true',
+      },
+      signal: abortController.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
         }
         
-        // Update message
-        if (update.message) {
-          setProgressMessage(update.message);
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        
+        if (!reader) {
+          throw new Error('No response body');
         }
         
-        // Update epoch info
-        if (update.epoch) {
-          setCurrentEpoch(update.epoch);
-        }
-        if (update.total_epochs) {
-          setTotalEpochs(update.total_epochs);
-        }
+        let buffer = '';
         
-        // Handle completion
-        if (update.stage === "completed") {
-          setTrainingStatus("success");
-          es.close();
-          setEventSource(null);
+        while (true) {
+          const { done, value } = await reader.read();
           
-          toast({
-            title: "Training Completed",
-            description: update.message || "Fine-tuning completed successfully.",
-          });
+          if (done) break;
           
-          // Fetch analytics after training completes
-          fetchAnalytics();
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
           
-          // Keep success state visible until user manually closes it
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = line.slice(6);
+                const update = JSON.parse(data);
+                handleProgressUpdate(update);
+              } catch (error) {
+                console.error('Error parsing SSE data:', error);
+              }
+            }
+          }
         }
-        
-        // Handle cancellation
-        if (update.stage === "cancelled" || update.stage === "cancelling") {
-          setTrainingStatus("idle");
-          setProgressMessage("");
-          setTrainingProgress(0);
-          setTrainingStartTime(null);
-          setCurrentEpoch(null);
-          setTotalEpochs(null);
-          setBackendJobId(null);
-          es.close();
-          setEventSource(null);
-          
-          toast({
-            title: "Training Cancelled",
-            description: update.message || "Training has been cancelled.",
-          });
+      })
+      .catch((error) => {
+        if (error.name !== 'AbortError') {
+          console.error('SSE connection error:', error);
+          if (trainingStatus === "training") {
+            setProgressMessage("Connection lost, progress may be inaccurate");
+          }
         }
-        
-        // Handle errors
-        if (update.stage === "error") {
-          setTrainingStatus("error");
-          setErrorMessage(update.message || "Training failed");
-          setTrainingProgress(0);
-          setTrainingStartTime(null);
-          setCurrentEpoch(null);
-          setTotalEpochs(null);
-          setProgressMessage("");
-          setBackendJobId(null);
-          es.close();
-          setEventSource(null);
-          
-          toast({
-            variant: "destructive",
-            title: "Training Failed",
-            description: update.message || "Training failed.",
-          });
-          
-          // Auto-reset error state after 5 seconds
-          setTimeout(() => {
-            setTrainingStatus("idle");
-            setErrorMessage("");
-          }, 5000);
-        }
-      } catch (error) {
-        console.error("Error parsing progress update:", error);
-      }
-    };
-
-    es.onerror = (error) => {
-      console.error("SSE connection error:", error);
-      es.close();
-      setEventSource(null);
-      // Fallback to simulated progress on error
-      if (trainingStatus === "training") {
-        // Keep training status but show warning
-        setProgressMessage("Connection lost, progress may be inaccurate");
-      }
-    };
+      });
+    
+    // Store abort controller for cleanup
+    setEventSource({ close: () => abortController.abort() } as any);
   };
 
   // Cancel training mutation
