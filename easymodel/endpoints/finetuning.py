@@ -184,7 +184,16 @@ async def stream_progress(job_id: str):
             if job_id in progress_queues:
                 threading.Timer(2.0, lambda: progress_queues.pop(job_id, None)).start()
     
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_generator(), 
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering
+            "ngrok-skip-browser-warning": "true",  # Skip ngrok warning page
+        }
+    )
 
 
 @router.post("/cancel/{job_id}")

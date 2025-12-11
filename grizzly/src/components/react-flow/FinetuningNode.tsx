@@ -219,7 +219,11 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
     setTrainingProgress(0);
     setProgressMessage("Connecting to training stream...");
 
-    const es = new EventSource(`${apiUrl}/finetuning/progress/${jobId}`);
+    // Add ngrok-skip-browser-warning to bypass ngrok's warning page
+    const sseUrl = new URL(`${apiUrl}/finetuning/progress/${jobId}`);
+    sseUrl.searchParams.set('ngrok-skip-browser-warning', 'true');
+    
+    const es = new EventSource(sseUrl.toString());
     setEventSource(es);
 
     es.onmessage = (event) => {
