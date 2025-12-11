@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Backend Test</title>
+</head>
+<body>
+    <h1>EasyModel Backend Test</h1>
+    <button onclick="testBackend()">Test Backend Health</button>
+    <button onclick="testTraining()">Test Training Request</button>
+    <pre id="output"></pre>
+
+    <script>
+        const output = document.getElementById('output');
+        
+        async function testBackend() {
+            output.textContent = 'Testing backend health...\n';
+            try {
+                const response = await fetch('https://easymodel.onrender.com/health');
+                const data = await response.json();
+                output.textContent += JSON.stringify(data, null, 2);
+            } catch (error) {
+                output.textContent += 'Error: ' + error.message;
+            }
+        }
+        
+        async function testTraining() {
+            output.textContent = 'Testing training request...\n';
+            
+            const HF_TOKEN = prompt('Enter your Hugging Face token:');
+            if (!HF_TOKEN) {
+                output.textContent += 'No token provided\n';
+                return;
+            }
+            
+            try {
+                const response = await fetch('https://easymodel.onrender.com/finetuning/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model_name: 'distilbert-base-uncased',
+                        datasets: ['imdb'],
+                        output_space: 'test-model-' + Date.now(),
+                        num_epochs: 1,
+                        batch_size: 2,
+                        max_length: 32,
+                        subset_size: 10,
+                        task_type: 'classification',
+                        text_field: 'text',
+                        label_field: 'label',
+                        api_key: HF_TOKEN
+                    })
+                });
+                
+                const data = await response.json();
+                output.textContent += 'Response:\n' + JSON.stringify(data, null, 2) + '\n\n';
+                
+                if (data.job_id) {
+                    output.textContent += 'Got job_id: ' + data.job_id + '\n';
+                    output.textContent += 'Now connecting to SSE stream...\n';
+                    
+                    // Connect to SSE
+                    const eventSource = new EventSource(`https://easymodel.onrender.com/finetuning/progress/${data.job_id}`);
+                    
+                    eventSource.onmessage = (event) => {
+                        output.textContent += 'Progress: ' + event.data + '\n';
+                    };
+                    
+                    eventSource.onerror = (error) => {
+                        output.textContent += 'SSE Error: ' + JSON.stringify(error) + '\n';
+                        eventSource.close();
+                    };
+                }
+            } catch (error) {
+                output.textContent += 'Error: ' + error.message + '\n';
+                output.textContent += 'Stack: ' + error.stack + '\n';
+            }
+        }
+    </script>
+</body>
+</html>
+

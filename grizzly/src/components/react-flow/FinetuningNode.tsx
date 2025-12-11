@@ -258,22 +258,18 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
           // Fetch analytics after training completes
           fetchAnalytics();
           
-          // Reset status after 10 seconds
-          setTimeout(() => {
-            setTrainingStatus("idle");
-            setTrainingProgress(0);
-            setTrainingStartTime(null);
-            setCurrentEpoch(null);
-            setTotalEpochs(null);
-            setProgressMessage("");
-            setBackendJobId(null);
-          }, 10000);
+          // Keep success state visible until user manually closes it
         }
         
         // Handle cancellation
         if (update.stage === "cancelled" || update.stage === "cancelling") {
           setTrainingStatus("idle");
-          setProgressMessage(update.message || "Training cancelled");
+          setProgressMessage("");
+          setTrainingProgress(0);
+          setTrainingStartTime(null);
+          setCurrentEpoch(null);
+          setTotalEpochs(null);
+          setBackendJobId(null);
           es.close();
           setEventSource(null);
           
@@ -281,22 +277,18 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
             title: "Training Cancelled",
             description: update.message || "Training has been cancelled.",
           });
-          
-          setTimeout(() => {
-            setTrainingStatus("idle");
-            setTrainingProgress(0);
-            setTrainingStartTime(null);
-            setCurrentEpoch(null);
-            setTotalEpochs(null);
-            setProgressMessage("");
-            setBackendJobId(null);
-          }, 3000);
         }
         
         // Handle errors
         if (update.stage === "error") {
           setTrainingStatus("error");
           setErrorMessage(update.message || "Training failed");
+          setTrainingProgress(0);
+          setTrainingStartTime(null);
+          setCurrentEpoch(null);
+          setTotalEpochs(null);
+          setProgressMessage("");
+          setBackendJobId(null);
           es.close();
           setEventSource(null);
           
@@ -306,11 +298,10 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
             description: update.message || "Training failed.",
           });
           
+          // Auto-reset error state after 5 seconds
           setTimeout(() => {
             setTrainingStatus("idle");
             setErrorMessage("");
-            setTrainingProgress(0);
-            setBackendJobId(null);
           }, 5000);
         }
       } catch (error) {
@@ -378,6 +369,19 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
   const handleCancel = () => {
     if (!backendJobId) return;
     cancelTrainingMutation.mutate({ backendJobId });
+  };
+
+  // Reset training state (close success/analytics card)
+  const handleResetTraining = () => {
+    setTrainingStatus("idle");
+    setTrainingProgress(0);
+    setTrainingStartTime(null);
+    setCurrentEpoch(null);
+    setTotalEpochs(null);
+    setProgressMessage("");
+    setBackendJobId(null);
+    setAnalyticsData(null);
+    setErrorMessage("");
   };
 
   // Fetch analytics after training
@@ -747,30 +751,47 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
         </div>
       )}
 
-      {/* Analytics Card */}
-      {analyticsData && trainingStatus === "success" && (
+      {/* Success Message */}
+      {trainingStatus === "success" && (
         <div className="mt-3 rounded-lg border-2 border-green-300 bg-green-50 p-3">
-          <div className="mb-2 flex items-center gap-2 text-sm font-bold text-green-800">
-            <CheckCircle2 className="h-4 w-4" />
-            <span>Training Analytics</span>
+          <div className="mb-2 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-bold text-green-800">
+              <CheckCircle2 className="h-4 w-4" />
+              <span>Training Completed!</span>
+            </div>
+            <button
+              onClick={handleResetTraining}
+              className="text-green-600 hover:text-green-800"
+              title="Close"
+            >
+              <XCircle className="h-4 w-4" />
+            </button>
           </div>
-          <div className="space-y-1 text-xs text-green-700">
-            {analyticsData.perplexity && (
-              <div>Perplexity: {analyticsData.perplexity.toFixed(2)}</div>
-            )}
-            {analyticsData.accuracy && (
-              <div>Accuracy: {(analyticsData.accuracy * 100).toFixed(2)}%</div>
-            )}
-            {analyticsData.f1_score && (
-              <div>F1 Score: {analyticsData.f1_score.toFixed(2)}</div>
-            )}
-            {analyticsData.loss && (
-              <div>Loss: {analyticsData.loss.toFixed(4)}</div>
-            )}
-            {!analyticsData.perplexity && !analyticsData.accuracy && !analyticsData.f1_score && (
-              <div>Analytics data available. Check your model on Hugging Face Hub.</div>
-            )}
+          <div className="text-xs text-green-700 mb-2">
+            Your model has been successfully trained and uploaded to Hugging Face!
           </div>
+          
+          {/* Analytics Card */}
+          {analyticsData && (
+            <div className="mt-2 space-y-1 text-xs text-green-700 border-t border-green-300 pt-2">
+              <div className="font-semibold">Training Metrics:</div>
+              {analyticsData.perplexity && (
+                <div>Perplexity: {analyticsData.perplexity.toFixed(2)}</div>
+              )}
+              {analyticsData.accuracy && (
+                <div>Accuracy: {(analyticsData.accuracy * 100).toFixed(2)}%</div>
+              )}
+              {analyticsData.f1_score && (
+                <div>F1 Score: {analyticsData.f1_score.toFixed(2)}</div>
+              )}
+              {analyticsData.loss && (
+                <div>Loss: {analyticsData.loss.toFixed(4)}</div>
+              )}
+              {!analyticsData.perplexity && !analyticsData.accuracy && !analyticsData.f1_score && (
+                <div>Check your model on Hugging Face Hub for detailed metrics.</div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -786,6 +807,22 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
             <XCircle className="mr-2 h-4 w-4" />
             Cancel Training
           </Button>
+        ) : trainingStatus === "success" ? (
+          <Button
+            onClick={handleTrain}
+            disabled={
+              !isModelConnected ||
+              !isDatasetConnected ||
+              !(connectedNodes.model?.data?.modelId && typeof connectedNodes.model.data.modelId === 'string' && connectedNodes.model.data.modelId.trim()) ||
+              !(connectedNodes.dataset?.data?.datasetId && typeof connectedNodes.dataset.data.datasetId === 'string' && connectedNodes.dataset.data.datasetId.trim()) ||
+              !outputSpace.trim() ||
+              !textField.trim()
+            }
+            className="w-full"
+            size="sm"
+          >
+            Train Another Model
+          </Button>
         ) : (
           <Button
             onClick={handleTrain}
@@ -800,14 +837,7 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
             className="w-full"
             size="sm"
           >
-            {trainingStatus === "success" ? (
-              <>
-                <CheckCircle2 className="mr-2 h-4 w-4" />
-                Started
-              </>
-            ) : (
-              "Train Model"
-            )}
+            Train Model
           </Button>
         )}
       </div>
