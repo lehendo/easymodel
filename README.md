@@ -5,6 +5,7 @@ EasyModel is a **visual no-code fine‑tuning studio** for Hugging Face models.
 It lets you build end‑to‑end training workflows on a canvas, start jobs with a single click, and inspect rich analytics for every run – all from your browser. The backend runs remotely (e.g. Colab / cloud), so you never have to install anything locally.
 
 Co-developed by Arjun Chatterjee and Pratyay Pandey. This project is a recipient of 1517 Fund's Medici Grant.
+
 ---
 
 ## What you can do
@@ -140,6 +141,8 @@ EasyModel is now in a state that is:
 
 If you’re interested in extending it (e.g. new analytics, additional task types, model registries, or multi‑backend support), the existing structure is built to support that growth.
 
-License
+---
+
+## License
 
 This project is licensed under the MIT License.
