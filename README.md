@@ -1,218 +1,143 @@
-# EasyModel
-
-EasyModel is a comprehensive no-code platform for fine-tuning and evaluating machine learning models, specifically designed for Hugging Face models and datasets. The platform combines a powerful FastAPI backend with an intuitive Next.js frontend featuring a visual workflow interface built with React Flow.
-
-## Overview
-
-EasyModel provides a complete solution for machine learning practitioners who want to fine-tune models without writing code. Users can visually connect model and dataset nodes, configure training parameters through an intuitive interface, and monitor training progress in real-time. The platform supports multiple task types including text generation, classification, sequence-to-sequence, and token classification.
-
-## Architecture
-
-The project consists of two main components:
-
-**Backend (FastAPI)**: A Python-based REST API that handles model fine-tuning, progress tracking via Server-Sent Events (SSE), and comprehensive analytics. The backend integrates with Hugging Face Hub for model management and supports real-time training cancellation.
-
-**Frontend (Next.js)**: A React-based web application featuring a visual node-based interface where users can drag and drop model and dataset nodes, connect them to a fine-tuning schema node, configure parameters, and initiate training with a single click. The frontend provides real-time progress updates, analytics visualization, and project management.
-
-## Key Features
-
-### Visual Workflow Interface
-- Drag-and-drop node-based interface for creating training workflows
-- Support for Hugging Face model and dataset nodes
-- Automatic column inference from datasets
-- Single-click training initiation without deployment steps
-- Real-time connection status indicators
-
-### Model Fine-tuning
-- Support for multiple task types: generation, classification, sequence-to-sequence, token classification
-- Configurable training parameters: epochs, batch size, sequence length, subset size
-- Automatic dataset field detection
-- Integration with Hugging Face Hub for model pushing
-- Real-time progress tracking with progress bars and epoch information
-- Training cancellation capability
-
-### Analytics and Evaluation
-- Comprehensive model analytics after training completion
-- Perplexity analysis for language models
-- Accuracy, F1 score, and loss metrics
-- Automatic analytics card display upon training completion
-
-### Project Management
-- Multiple project support with persistent storage
-- Local storage and database synchronization
-- Project creation, editing, and deletion
-- Automatic "Untitled Project" creation for new users
-
-## Technology Stack
-
-**Backend:** FastAPI, PyTorch, Transformers, Hugging Face Hub, Server-Sent Events, SQLite (via Prisma)
-
-**Frontend:** Next.js 15, React 18, React Flow, tRPC, Prisma, Tailwind CSS, TypeScript
-
-## Installation
-
-### Prerequisites
-- Python 3.12 (for backend ML dependencies)
-- Node.js 18+ and npm
-- Hugging Face API token
-
-### Backend Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/lehendo/easymodel.git
-cd easymodel
-
-# Create Python 3.12 virtual environment
-python3.12 -m venv venv312
-source venv312/bin/activate  # On Windows: venv312\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Set up environment variables
-echo "HUGGINGFACE_API_KEY=your-huggingface-api-key-here" > .env
-# Get your API token from https://huggingface.co/settings/tokens
-
-# Run the backend server
-python main.py
-```
-
-The backend will start on `http://localhost:8000`
-
-### Frontend Setup
-
-```bash
-# Navigate to frontend directory
-cd grizzly
-
-# Install dependencies
-npm install
-
-# Set up environment variables
-echo "NEXT_PUBLIC_EASYMODEL_API_URL=http://localhost:8000" > .env.local
-echo "DATABASE_URL=file:./prisma/dev.db" >> .env.local
-
-# Generate Prisma client and run migrations
-npx prisma generate
-npx prisma migrate dev
-
-# Start the development server
-npm run dev
-```
-
-The frontend will start on `http://localhost:3000`
-
-## Environment Variables
-
-### Backend (.env)
-- `HUGGINGFACE_API_KEY` or `HF_TOKEN`: Your Hugging Face API token (required for fine-tuning)
-- `ALLOWED_ORIGINS`: Comma-separated list of allowed CORS origins (optional, defaults to localhost)
-
-### Frontend (.env.local)
-- `NEXT_PUBLIC_EASYMODEL_API_URL`: Backend API URL (default: http://localhost:8000)
-- `DATABASE_URL`: SQLite database path (default: file:./prisma/dev.db)
-
-**Security Note**: Never commit `.env` files to version control. They are automatically ignored by git.
-
-## Usage
-
-### Starting Training
-
-1. Open the frontend application in your browser
-2. Create a new project or select an existing one
-3. Drag a "HuggingFace Model" node onto the canvas and enter a model name (e.g., "gpt2")
-4. Drag a "HuggingFace Dataset" node onto the canvas and enter a dataset name (e.g., "squad")
-5. Drag a "Finetuning Schema" node onto the canvas
-6. Connect the model and dataset nodes to the finetuning node (top or bottom connectors)
-7. Configure training parameters in the finetuning node
-8. Click "Train Model" to start training
-
-### Training Parameters
-
-- **Output Model Name**: Name for your fine-tuned model on Hugging Face Hub
-- **Epochs**: Number of training epochs
-- **Batch Size**: Training batch size
-- **Max Length**: Maximum sequence length
-- **Subset Size**: Number of samples to use from the dataset
-- **Task Type**: Type of ML task (generation, classification, seq2seq, token_classification)
-- **Text Field**: Name of the text column in your dataset
-- **Label Field**: Name of the label column (required for non-generation tasks)
-
-### Monitoring Progress
-
-During training, you'll see real-time progress bars, current epoch information, progress messages, and a cancel button. Upon completion, an analytics card will display relevant metrics.
-
-## API Endpoints
-
-### Fine-tuning
-- `POST /finetuning/` - Start a fine-tuning job
-- `GET /finetuning/progress/{job_id}` - Stream training progress (SSE)
-- `POST /finetuning/cancel/{job_id}` - Cancel a running training job
-
-### Analytics
-- `POST /analytics/analytics` - Run comprehensive model analytics
-- `POST /analytics/evaluate` - Evaluate a single model
-- `POST /analytics/compare` - Compare two models
-
-### Utility
-- `GET /health` - Health check endpoint
-
-## Deployment
-
-See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.
-
-### Quick Summary
-
-**Frontend (Vercel)**: Push code to GitHub, import in Vercel with root directory set to `grizzly`, configure environment variables (`NEXT_PUBLIC_EASYMODEL_API_URL` and `DATABASE_URL`), and deploy.
-
-**Backend (Railway/Render/etc.)**: Deploy Python backend to Railway, Render, or similar service, set `HUGGINGFACE_API_KEY`, update frontend's `NEXT_PUBLIC_EASYMODEL_API_URL` to point to backend URL, and configure backend CORS to allow your Vercel domain.
-
-**Important**: The Python backend with ML dependencies cannot run on Vercel due to size limitations. Deploy it separately to a service that supports large Python applications.
-
-## Project Structure
-
-```
-easymodel/
-├── main.py                    # FastAPI backend entry point
-├── requirements.txt           # Python dependencies
-├── easymodel/                 # Backend package
-│   ├── endpoints/            # API endpoints
-│   └── utils/                 # Core logic and analytics
-├── grizzly/                   # Next.js frontend
-│   ├── src/                   # Source code
-│   └── prisma/                # Database schema
-└── README.md                  # This file
-```
-
-## Development
-
-### Running Tests
-
-```bash
-# Backend tests
-cd tests && python test_analytics.py
-
-# Frontend type checking
-cd grizzly && npm run typecheck
-```
-
-### Database Management
-
-```bash
-cd grizzly
-npx prisma studio  # Open Prisma Studio
-npx prisma migrate dev  # Create new migration
-```
-
-## Contributing
-
-Contributions are welcome! Fork the repository, create a feature branch, make your changes, add tests if applicable, and submit a pull request.
-
-## License
-
+## EasyModel
+
+EasyModel is a **visual no-code fine‑tuning studio** for Hugging Face models.
+
+It lets you build end‑to‑end training workflows on a canvas, start jobs with a single click, and inspect rich analytics for every run – all from your browser. The backend runs remotely (e.g. Colab / cloud), so you never have to install anything locally.
+
+---
+
+## What you can do
+
+- **Fine‑tune Hugging Face models without code**
+  - Pick a model and dataset by URL (e.g. `openai-community/gpt2`, `rajpurkar/squad`).
+  - Choose a task type (generation, classification, seq2seq, token classification).
+  - Set epochs, batch size, max length, subset size, text/label fields.
+  - Hit “Train Model” and watch it go.
+
+- **Design training pipelines visually**
+  - Drag the following nodes onto a canvas:
+    - **HuggingFace Model** – which model to fine‑tune.
+    - **HuggingFace Dataset** – which dataset to use.
+    - **Finetuning** – hyperparameters and run configuration.
+  - Connect nodes to define the flow (model → finetune, dataset → finetune).
+  - Zoom, pan, rearrange, and organize your experiments visually.
+
+- **Track progress in real time**
+  - Live status messages during training (via server‑sent events).
+  - Current epoch and total epochs.
+  - Progress indicators directly inside the Finetuning node.
+  - Clear success / error states when a job completes or fails.
+
+- **Explore analytics after each run**
+  - **Perplexity**:
+    - Training vs validation vs baseline curves across epochs.
+    - Quick sense of over/under‑fitting and improvements over the base model.
+  - **GQS (Generative Quality Score)**:
+    - Radar chart over fluency, coherence, grammar, relevance.
+    - Overall GQS score + improvement vs baseline.
+  - **Semantic Consistency & Drift**:
+    - Similarity over segments to see how stable your model behaves.
+  - **Token Efficiency & Compression Ratio**:
+    - Compare pre‑trained vs fine‑tuned token efficiency across tasks.
+    - Scatter plot of original vs generated length with a diagonal reference.
+
+- **Manage multiple projects**
+  - Create and switch between projects from the left sidebar.
+  - Each project has its **own React Flow canvas** and analytics history.
+  - The currently active project is clearly highlighted in the UI.
+
+---
+
+## Experience highlights
+
+### Visual React Flow canvas
+
+The core experience is a **React Flow‑powered graph**:
+
+- Nodes represent models, datasets, and finetuning schemas.
+- Edges represent data flow between them.
+- You can:
+  - Drag nodes from the palette.
+  - Connect them to define which model uses which dataset.
+  - Open the Finetuning node to configure training.
+- The canvas is **per‑project and persistent**:
+  - Your graph is automatically saved per `projectId`.
+  - You can navigate to analytics, other pages, or refresh the browser – when you come back, your nodes, edges, and their internal data are still there.
+
+### Dark mode, everywhere
+
+The entire app supports **light and dark mode**:
+
+- A theme toggle lives in the sidebar.
+- Charts, nodes, text, backgrounds, and UI components all adapt to the active theme.
+- The design intentionally avoids harsh contrast or unreadable states in either mode.
+
+### Analytics views that actually match the training
+
+Analytics aren’t fake placeholders – they are computed during your actual training runs:
+
+- The backend records and aggregates metrics at the epoch level.
+- The frontend analytics page reads those metrics and:
+  - Shows **per‑epoch** curves for training and validation perplexity.
+  - Computes **improvement percentages** over baseline.
+  - Updates GQS and semantic metrics to match your latest run.
+- If for any reason an SSE update doesn’t carry analytics, the frontend has a **fallback fetch** once training completes.
+
+---
+
+## How it works (high level)
+
+- **Frontend**
+  - Next.js app (deployed on Vercel) provides:
+    - React Flow canvas with per‑project persistence (using Zustand).
+    - Analytics dashboard with Recharts‑based visualizations.
+    - tRPC‑driven data layer and Prisma‑backed database for projects and analytics.
+  - State is carefully managed so:
+    - Node/edge changes are saved atomically to localStorage and synced to the DB.
+    - Only the active project’s graph is touched at any time.
+    - No timers or intervals are owned by pages – they live in the store instead.
+
+- **Backend**
+  - A FastAPI service (e.g. running in Colab or another host) handles:
+    - Fine‑tuning jobs using Hugging Face Transformers and PyTorch.
+    - Progress streaming via Server‑Sent Events.
+    - On‑the‑fly analytics:
+      - Perplexity for language models.
+      - Semantic similarity and coherence.
+      - GQS metrics.
+      - Token efficiency and compression ratios.
+  - When a job runs, the backend:
+    - Streams `stage`, `epoch`, `progress`, and messages.
+    - Emits analytics payloads that are saved and later visualized.
+
+---
+
+## Privacy & security
+
+- **Hugging Face token**:
+  - Entered in the Finetuning node when you start a job.
+  - Stored only in `window.sessionStorage` for the browser session.
+  - Not written to the database or committed to Git.
+- **Environment variables**:
+  - Backend and frontend secrets live in `.env` files **outside** version control.
+  - The repository’s `.gitignore` aggressively ignores `.env`, `*.db`, and other sensitive file types.
+- **Open‑source ready**:
+  - No hard‑coded API keys or access tokens in the repo.
+  - No backdoor network calls beyond the documented backend and Hugging Face endpoints.
+
+---
+
+## Status and future directions
+
+EasyModel is now in a state that is:
+
+- **Stable enough for people to try**.
+- Architected for **commercial‑style usage** (clear separation of frontend/backend, no secrets in code, durable canvas state).
+- Friendly to future contributions:
+  - The codebase is organized by feature (React Flow, analytics, APIs).
+  - The React Flow persistence layer centers on a single Zustand store rather than scattered effects.
+
+If you’re interested in extending it (e.g. new analytics, additional task types, model registries, or multi‑backend support), the existing structure is built to support that growth.
+
+License
 This project is licensed under the MIT License.
-
-## Acknowledgments
-
-Built with FastAPI, Next.js, React Flow, PyTorch, Transformers, and Hugging Face libraries.
