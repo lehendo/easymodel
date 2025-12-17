@@ -203,13 +203,6 @@ const DashboardPage = () => {
               <div className="text-sm text-muted-foreground">Please wait</div>
             </div>
           </div>
-        ) : error ? (
-          <div className="flex h-full items-center justify-center">
-            <div className="text-center">
-              <div className="text-lg font-semibold text-red-600">Error loading analytics</div>
-              <div className="text-sm text-muted-foreground">{error.message}</div>
-            </div>
-          </div>
         ) : !parsedAnalytics || !hasAnalyticsData ? (
           <div className="flex h-full items-center justify-center">
             <div className="text-center">
