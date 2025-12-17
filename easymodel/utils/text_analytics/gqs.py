@@ -55,6 +55,9 @@ def check_grammar(text):
     if grammar_model is None or grammar_tokenizer is None:
         return 0.5  # Return neutral score if model not available
     try:
+        # Ensure tokenizer has pad token
+        if grammar_tokenizer.pad_token is None:
+            grammar_tokenizer.pad_token = grammar_tokenizer.eos_token
         inputs = grammar_tokenizer(text, return_tensors="pt", truncation=True, padding=True)
         with torch.no_grad():
             outputs = grammar_model(**inputs)

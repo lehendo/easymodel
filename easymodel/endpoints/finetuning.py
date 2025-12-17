@@ -43,6 +43,7 @@ class FinetuningRequest(BaseModel):
     task_type: str  # Task type like 'generation', 'classification', etc.
     text_field: str  # Single text field that the user wants to use
     label_field: str = None  # Label field is optional and only required for non-generation tasks
+    project_id: Optional[str] = None  # Optional project ID for analytics storage
 
 def run_training(job_id: str, data: FinetuningRequest, api_key: str):
     """Run training in background thread and emit progress updates."""
@@ -58,10 +59,44 @@ def run_training(job_id: str, data: FinetuningRequest, api_key: str):
     
     progress_queue = progress_queues.get(job_id)
     
+    # Store analytics data for this job
+    analytics_data = {
+        "perplexity": {"epochs": [], "training": [], "validation": [], "baseline": None},
+        "semanticDrift": {"segments": [], "similarity": []},
+        "gqs": {"metrics": [], "model": [], "baseline": []},
+        "tokenEfficiency": {"tasks": [], "pretrained": [], "finetuned": []}
+    }
+    
     def progress_callback(update: dict):
         """Callback to emit progress updates."""
         if progress_queue:
             progress_queue.put(update)
+    
+    def analytics_callback(analytics_update: dict):
+        """Callback to emit analytics updates."""
+        if progress_queue:
+            # Update stored analytics data
+            if "perplexity" in analytics_update:
+                analytics_data["perplexity"] = analytics_update["perplexity"]
+            if "semanticDrift" in analytics_update:
+                analytics_data["semanticDrift"] = analytics_update["semanticDrift"]
+            if "gqs" in analytics_update:
+                analytics_data["gqs"] = analytics_update["gqs"]
+            if "tokenEfficiency" in analytics_update:
+                analytics_data["tokenEfficiency"] = analytics_update["tokenEfficiency"]
+            
+            # Debug: Log what we're sending
+            print(f"[FINETUNING ENDPOINT] Emitting analytics - Epoch: {analytics_update.get('epoch', 0)}, "
+                  f"Perplexity epochs: {len(analytics_data.get('perplexity', {}).get('epochs', []))}, "
+                  f"Semantic segments: {len(analytics_data.get('semanticDrift', {}).get('segments', []))}")
+            
+            # Emit analytics update through progress stream
+            progress_queue.put({
+                "stage": "analytics",
+                "analytics": analytics_data,
+                "epoch": analytics_update.get("epoch", 0),
+                "project_id": data.project_id
+            })
     
     def cancel_check() -> bool:
         """Check if training should be cancelled."""
@@ -81,7 +116,8 @@ def run_training(job_id: str, data: FinetuningRequest, api_key: str):
             text_field=data.text_field,
             label_field=data.label_field if data.task_type != "generation" else None,
             progress_callback=progress_callback,
-            cancel_flag=cancel_check
+            cancel_flag=cancel_check,
+            analytics_callback=analytics_callback
         )
     except Exception as e:
         logger.error(f"Error during fine-tuning: {str(e)}")

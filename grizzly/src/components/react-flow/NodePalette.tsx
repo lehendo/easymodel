@@ -110,9 +110,9 @@ export default function NodePalette({ onAddNode, getReactFlowBounds }) {
               {nodeTypes.map((node) => {
                 const customStyles =
                   node.type === "huggingFace"
-                    ? { backgroundColor: "#FFC107", color: "#333" }
+                    ? { backgroundColor: "#FFC107", color: "hsl(var(--foreground))" }
                     : node.type === "dataset"
-                      ? { backgroundColor: "#FF9800", color: "#333" }
+                      ? { backgroundColor: "#FF9800", color: "hsl(var(--foreground))" }
                       : {};
 
                 return (

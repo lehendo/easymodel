@@ -153,6 +153,7 @@ export const jobRouter = createTRPCRouter({
               text_field: input.textField,
               label_field: input.labelField,
               api_key: apiKey,
+              project_id: input.projectId,
             }),
           });
         } catch (error) {

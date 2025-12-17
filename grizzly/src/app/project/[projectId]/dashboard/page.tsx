@@ -1,23 +1,22 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import React, { useCallback, useRef, useEffect, useMemo } from "react";
+import { useTheme } from "next-themes";
 import nextDynamic from "next/dynamic";
 import {
   Background,
   Controls,
-  addEdge,
   Node,
   Edge,
   Connection,
   ReactFlowProvider,
   useReactFlow,
   useStoreApi,
-  useNodesState,
-  useEdgesState,
   type NodeProps,
 } from "@xyflow/react";
-import { usePathname } from "next/navigation"; // For detecting route changes
+import { useParams } from "next/navigation";
 import { api } from "../../../../trpc/react";
+import { useFlowStore } from "../../../../stores/flowStore";
 import LeftSidebar from "../../../../components/dashboard/LeftSidebar";
 import NodePalette from "../../../../components/react-flow/NodePalette";
 import HuggingFaceDatasetNode from "../../../../components/react-flow/HuggingFaceDatasetNode";
@@ -39,8 +38,6 @@ const ReactFlow = nextDynamic(
   { ssr: false },
 );
 
-const MIN_INACTIVITY = 60 * 1000; // 1 minute in milliseconds
-
 const NodeContextMenu = ({ children, onDelete }: { children: React.ReactNode; onDelete: () => void }) => (
   <ContextMenu>
     <ContextMenuTrigger>{children}</ContextMenuTrigger>
@@ -51,102 +48,119 @@ const NodeContextMenu = ({ children, onDelete }: { children: React.ReactNode; on
 );
 
 const Home = () => {
-  const pathname = usePathname();
-  const projectId = pathname?.split("/")[2]; // Extract projectId from URL
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
-  const [lastSyncTime, setLastSyncTime] = useState(Date.now());
+  const params = useParams();
+  const projectId = params?.projectId as string;
+  const { theme } = useTheme();
+  const [mounted, setMounted] = React.useState(false);
+
+  // Avoid hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Compute background color based on theme
+  // Dark mode: hsl(240, 10%, 3.9%) ≈ #0a0a0f, Light mode: #F7F9FB
+  const backgroundColor = useMemo(() => {
+    if (!mounted) return "#F7F9FB"; // Default during SSR
+    return theme === "dark" ? "#0a0a0f" : "#F7F9FB";
+  }, [mounted, theme]);
 
   const reactFlowWrapper = useRef<HTMLDivElement | null>(null);
   const store = useStoreApi();
   const { getInternalNode } = useReactFlow();
 
-  // Sync to DB
+  // Get Zustand store state and actions
+  const { nodes, edges, setProject, onNodesChange, onEdgesChange, onConnect, setDBSync, addNode, deleteNode, updateEdges } = useFlowStore();
+
+  // Sync to DB mutation
   const syncNodesMutation = api.project.updateNodes.useMutation();
 
-  // Track if we've loaded nodes for this project to prevent clearing on re-render
-  const [loadedProjectId, setLoadedProjectId] = useState<string | null>(null);
+  // Fetch project data from database (for initial load if localStorage is empty)
+  const { data: projectData } = api.project.getProjectById.useQuery(
+    { projectId: projectId || "" },
+    { enabled: !!projectId }
+  );
 
-  // Load nodes/edges from localStorage when component mounts or projectId changes
+  // Set up DB sync function and schedule sync (ONCE per app lifecycle)
+  useEffect(() => {
+    const syncToDB = async (pid: string, nodes: Node[], edges: Edge[]) => {
+      if (nodes.length > 0) {
+        try {
+          // Sync both nodes and edges to database
+          await syncNodesMutation.mutateAsync({ 
+            projectId: pid, 
+            nodes,
+            edges, // Include edges in sync
+          });
+        } catch (error) {
+          console.error("Failed to sync nodes to database:", error);
+        }
+      }
+    };
+
+    // Set sync function and start timer (singleton pattern in store)
+    // Called once per app lifecycle, not per projectId change
+    setDBSync(syncToDB);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - call once
+
+  // Load project on mount or when projectId changes (NOT when projectData changes)
   useEffect(() => {
     if (!projectId) return;
-    
-    // Only load if projectId changed (not on every render)
-    if (loadedProjectId === projectId) return;
-    
-    const savedNodes = localStorage.getItem(`project-${projectId}-nodes`);
-    const savedEdges = localStorage.getItem(`project-${projectId}-edges`);
 
-    if (savedNodes) {
+    const loadFromDB = async (pid: string) => {
+      // Access projectData from closure, but don't depend on it in effect deps
+      // Store will decide whether to hydrate based on localStorage state
+      const currentProjectData = projectData;
+      if (!currentProjectData) return null;
+      
       try {
-        const parsed = JSON.parse(savedNodes);
-        if (Array.isArray(parsed)) {
-          setNodes(parsed as Node[]);
+        // Support both old format (just nodes array) and new format (nodes+edges object)
+        let dbNodes: any[] = [];
+        let dbEdges: Edge[] = [];
+        
+        // Type-safe access to projectData
+        const data = currentProjectData as any;
+        
+        if (Array.isArray(data.nodes)) {
+          // Old format: just nodes array
+          dbNodes = data.nodes;
+          dbEdges = [];
+        } else if (data.nodes && typeof data.nodes === 'object' && 'nodes' in data.nodes) {
+          // New format: { nodes: [], edges: [] } stored in nodes field
+          dbNodes = data.nodes.nodes || [];
+          dbEdges = data.nodes.edges || [];
+        } else if ('edges' in data && Array.isArray(data.edges)) {
+          // Edges at top level (from getProjectById parsing)
+          dbNodes = Array.isArray(data.nodes) ? data.nodes : [];
+          dbEdges = data.edges;
+        } else {
+          // Fallback
+          dbNodes = Array.isArray(data.nodes) ? data.nodes : [];
+          dbEdges = [];
+        }
+        
+        if (dbNodes.length > 0 || dbEdges.length > 0) {
+          return {
+            nodes: dbNodes,
+            edges: dbEdges,
+          };
         }
       } catch (e) {
-        console.error("Failed to parse saved nodes:", e);
+        console.error("Failed to parse database nodes:", e);
       }
-    }
-    if (savedEdges) {
-      try {
-        const parsed = JSON.parse(savedEdges);
-        if (Array.isArray(parsed)) {
-          setEdges(parsed);
-        }
-      } catch (e) {
-        console.error("Failed to parse saved edges:", e);
-      }
-    }
-    
-    setLoadedProjectId(projectId);
+      return null;
+    };
 
-    const syncInterval = setInterval(() => {
-      if (Date.now() - lastSyncTime >= MIN_INACTIVITY) {
-        syncNodesToDB();
-      }
-    }, MIN_INACTIVITY);
-
-    return () => clearInterval(syncInterval); // Cleanup on unmount
-  }, [projectId, loadedProjectId]); // Only reload when projectId actually changes
-
-  // Sync the nodes and edges to localStorage on change (but don't clear if nodes become empty temporarily)
-  useEffect(() => {
-    if (projectId) {
-      // Always save, even if empty, to preserve state
-      localStorage.setItem(`project-${projectId}-nodes`, JSON.stringify(nodes));
-      localStorage.setItem(`project-${projectId}-edges`, JSON.stringify(edges));
-    }
-  }, [nodes, edges, projectId]);
-
-  // Sync nodes to the database
-  const syncNodesToDB = async () => {
-    if (nodes.length > 0 && projectId) {
-      await syncNodesMutation.mutateAsync({ projectId, nodes });
-      setLastSyncTime(Date.now()); // Update last sync time
-    }
-  };
-
-  // Trigger DB sync when switching page (but don't clear localStorage)
-  useEffect(() => {
-    // Only sync if we have nodes and a valid projectId
-    if (nodes.length > 0 && projectId) {
-      syncNodesToDB();
-    }
-  }, [pathname]); // Only on pathname change, not on nodes change
-
-  const onConnect = useCallback(
-    (connection: Connection) => setEdges((eds) => addEdge(connection, eds)),
-    [],
-  );
+    setProject(projectId, loadFromDB);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]); // ONLY depend on projectId - store handles hydration logic
 
   const onDeleteNode = useCallback(
     (nodeId: string) => {
-      setNodes((nds) => nds.filter((node) => node.id !== nodeId));
-      setEdges((eds) =>
-        eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId),
-      );
+      deleteNode(nodeId);
     },
-    [setNodes, setEdges],
+    [deleteNode],
   );
 
   const nodeTypes = useMemo(
@@ -219,48 +233,46 @@ const Home = () => {
   const onNodeDrag = useCallback(
     (_: any, node: Node) => {
       const updatedConnection = getUpdatedConnection(node);
-      setEdges((es) => {
-        const nextEdges = es.filter((e) => e.className !== "temp");
+      const state = useFlowStore.getState();
+      const nextEdges = state.edges.filter((e) => e.className !== "temp");
 
-        if (
-          updatedConnection &&
-          !nextEdges.find(
-            (ne) =>
-              ne.source === updatedConnection.source &&
-              ne.target === updatedConnection.target,
-          )
-        ) {
-          updatedConnection.className = "temp";
-          nextEdges.push(updatedConnection);
-        }
+      if (
+        updatedConnection &&
+        !nextEdges.find(
+          (ne) =>
+            ne.source === updatedConnection.source &&
+            ne.target === updatedConnection.target,
+        )
+      ) {
+        updatedConnection.className = "temp";
+        nextEdges.push(updatedConnection);
+      }
 
-        return nextEdges;
-      });
+      updateEdges(nextEdges);
     },
-    [getUpdatedConnection, setEdges],
+    [getUpdatedConnection, updateEdges],
   );
 
   const onNodeDragStop = useCallback(
     (_: any, node: Node) => {
       const updatedConnection = getUpdatedConnection(node);
-      setEdges((es) => {
-        const nextEdges = es.filter((e) => e.className !== "temp");
+      const state = useFlowStore.getState();
+      const nextEdges = state.edges.filter((e) => e.className !== "temp");
 
-        if (
-          updatedConnection &&
-          !nextEdges.find(
-            (ne) =>
-              ne.source === updatedConnection.source &&
-              ne.target === updatedConnection.target,
-          )
-        ) {
-          nextEdges.push(updatedConnection);
-        }
+      if (
+        updatedConnection &&
+        !nextEdges.find(
+          (ne) =>
+            ne.source === updatedConnection.source &&
+            ne.target === updatedConnection.target,
+        )
+      ) {
+        nextEdges.push(updatedConnection);
+      }
 
-        return nextEdges;
-      });
+      updateEdges(nextEdges);
     },
-    [getUpdatedConnection],
+    [getUpdatedConnection, updateEdges],
   );
 
   const onDrop = useCallback(
@@ -289,9 +301,10 @@ const Home = () => {
         data: { label: `${type} Node` },
       };
 
-      setNodes((nds) => [...nds, newNode]);
+      // Add node using store (which handles persistence atomically)
+      addNode(newNode);
     },
-    [setNodes],
+    [addNode],
   );
 
   return (
@@ -306,19 +319,19 @@ const Home = () => {
           onConnect={onConnect}
           onDragOver={(e) => e.preventDefault()}
           onDrop={onDrop}
-          colorMode="light"
+          colorMode={mounted && theme === "dark" ? "dark" : "light"}
           nodeTypes={nodeTypes}
           fitView={false}
           onNodeDrag={onNodeDrag}
           onNodeDragStop={onNodeDragStop}
-          style={{ backgroundColor: "#F7F9FB" }}
+          className="bg-background"
         >
-          {/* <DockComponent /> */}
-          <Background color="#F7F9FB" />
+          <DockComponent />
+          <Background color={backgroundColor} />
           <Controls />
         </ReactFlow>
         <NodePalette 
-          onAddNode={(node: any) => setNodes((nds) => [...nds, node])} 
+          onAddNode={(node: any) => addNode(node)}
           getReactFlowBounds={() => reactFlowWrapper.current?.getBoundingClientRect()} 
         />
       </div>

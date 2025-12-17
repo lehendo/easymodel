@@ -1,15 +1,14 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs"
 import { Button } from "../ui/button"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ScatterChart, Scatter, ZAxis, ReferenceLine, Line } from 'recharts'
 import { ChartContainer } from "../ui/chart"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog"
 
-// Sample data for token efficiency
-const tokenEfficiencyData = [
+// Sample data for token efficiency (fallback)
+const sampleTokenEfficiencyData = [
   { id: 1, task: "Summarization", efficiency: 0.75, originalText: "Long text about AI...", generatedText: "AI summary..." },
   { id: 2, task: "Question Answering", efficiency: 0.85, originalText: "What is machine learning?", generatedText: "Machine learning is..." },
   { id: 3, task: "Translation", efficiency: 0.9, originalText: "Hello, how are you?", generatedText: "Hola, ¿cómo estás?" },
@@ -17,7 +16,7 @@ const tokenEfficiencyData = [
   { id: 5, task: "Code Generation", efficiency: 0.8, originalText: "Create a function to...", generatedText: "def my_function():..." },
 ]
 
-const tokenEfficiencyDataft = [
+const sampleTokenEfficiencyDataft = [
   { id: 1, task: "Summarization", efficiency: 0.85, originalText: "Long text about AI...", generatedText: "AI summary..." },
   { id: 2, task: "Question Answering", efficiency: 0.95, originalText: "What is machine learning?", generatedText: "Machine learning is..." },
   { id: 3, task: "Translation", efficiency: 0.95, originalText: "Hello, how are you?", generatedText: "Hola, ¿cómo estás?" },
@@ -26,7 +25,7 @@ const tokenEfficiencyDataft = [
 ]
 
 // Sample data for compression ratio
-const compressionRatioData = [
+const sampleCompressionRatioData = [
   { id: 1, originalLength: 100, generatedLength: 25, task: "Summarization" },
   { id: 2, originalLength: 50, generatedLength: 60, task: "Question Answering" },
   { id: 3, originalLength: 30, generatedLength: 35, task: "Translation" },
@@ -34,13 +33,23 @@ const compressionRatioData = [
   { id: 5, originalLength: 120, generatedLength: 40, task: "Code Generation" },
 ]
 
+interface TokenEfficiencyData {
+  tasks?: any[];
+  pretrained?: any[];
+  finetuned?: any[];
+}
+
+interface Props {
+  data?: TokenEfficiencyData;
+}
+
 const CustomBarTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload
     return (
       <div className="bg-background p-4 rounded-lg shadow-lg border border-border">
         <p className="font-bold">{data.task}</p>
-        <p>Efficiency: {data.efficiency.toFixed(2)}</p>
+        <p>Efficiency: {(data.efficiency * 100).toFixed(2)}%</p>
         <p className="mt-2 text-sm">
           {data.efficiency >= 0.8 
             ? "High efficiency. Good token usage."
@@ -67,9 +76,106 @@ const CustomScatterTooltip = ({ active, payload }: any) => {
   return null
 }
 
-export default function TokenEfficiencyVisualization() {
+export default function TokenEfficiencyVisualization({ data: propData }: Props) {
   const [selectedModel, setSelectedModel] = useState("pretrained")
   const [threshold, setThreshold] = useState(0.8)
+
+  // Transform data for charts
+  const tokenEfficiencyData = useMemo(() => {
+    if (propData?.pretrained && propData?.tasks && propData.pretrained.length > 0) {
+      return propData.tasks.map((task: string, index: number) => ({
+        id: index + 1,
+        task: task,
+        efficiency: propData.pretrained?.[index] || 0,
+        originalText: `Sample text for ${task}...`,
+        generatedText: `Generated output for ${task}...`,
+      }));
+    }
+    return sampleTokenEfficiencyData;
+  }, [propData])
+
+  const tokenEfficiencyDataft = useMemo(() => {
+    if (propData?.finetuned && propData?.tasks && propData.finetuned.length > 0) {
+      const data = propData.tasks.map((task: string, index: number) => ({
+        id: index + 1,
+        task: task,
+        efficiency: propData.finetuned?.[index] || 0,
+        originalText: `Sample text for ${task}...`,
+        generatedText: `Generated output for ${task}...`,
+      }));
+      console.log("[Token Efficiency] Fine-tuned data:", data, "from propData.finetuned:", propData.finetuned);
+      return data;
+    }
+    console.log("[Token Efficiency] No fine-tuned data, using sample data");
+    return sampleTokenEfficiencyDataft;
+  }, [propData])
+
+  const compressionRatioData = useMemo(() => {
+    if (propData?.tasks && propData?.pretrained && propData?.finetuned) {
+      const baseData = propData.tasks.map((task: string, index: number) => {
+        // Compute compression ratio from actual efficiency values
+        // Compression ratio = output_length / input_length
+        // Lower ratio = better compression
+        const pretrainedEff = (propData.pretrained && propData.pretrained[index]) || 0.7;
+        const finetunedEff = (propData.finetuned && propData.finetuned[index]) || 0.75;
+        
+        // Use efficiency to estimate compression ratio
+        // Efficiency represents useful tokens / total tokens
+        // For compression: ratio = 1 / efficiency (inverse relationship)
+        // Higher efficiency = lower compression ratio (better compression)
+        const baseLength = 100;
+        const originalLength = baseLength;
+        
+        // Compute generated length based on efficiency
+        // More efficient = fewer tokens needed = better compression
+        // Use inverse relationship: generatedLength = originalLength * (1 - efficiency * 0.8)
+        // This ensures different tasks show different compression ratios
+        const pretrainedRatio = 1 - (pretrainedEff * 0.8);
+        const finetunedRatio = 1 - (finetunedEff * 0.8);
+        
+        // Use finetuned for display (shows current state)
+        const generatedLength = Math.max(20, Math.round(originalLength * finetunedRatio));
+        
+        return {
+          id: index + 1,
+          originalLength: originalLength,
+          generatedLength: generatedLength,
+          task: task,
+        };
+      });
+
+      // Add jittering to prevent overlapping points
+      // Group points by their coordinates and add small offsets
+      const jitteredData = baseData.map((point, index) => {
+        // Find points with same or very similar coordinates
+        const similarPoints = baseData.filter((p, i) => 
+          i !== index &&
+          Math.abs(p.originalLength - point.originalLength) < 2 &&
+          Math.abs(p.generatedLength - point.generatedLength) < 2
+        );
+
+        // If there are similar points, add jitter
+        if (similarPoints.length > 0) {
+          // Create a circular jitter pattern for overlapping points
+          const angle = (index * 2 * Math.PI) / baseData.length;
+          const jitterRadius = 3; // Small offset radius
+          const jitterX = Math.cos(angle) * jitterRadius;
+          const jitterY = Math.sin(angle) * jitterRadius;
+          
+          return {
+            ...point,
+            originalLength: point.originalLength + jitterX,
+            generatedLength: point.generatedLength + jitterY,
+          };
+        }
+        
+        return point;
+      });
+
+      return jitteredData;
+    }
+    return sampleCompressionRatioData;
+  }, [propData])
 
   // Choose the data based on the selected model
   const currentData = selectedModel === "pretrained" ? tokenEfficiencyData : tokenEfficiencyDataft
@@ -105,7 +211,16 @@ export default function TokenEfficiencyVisualization() {
                   </Button>
                 </div>
               </div>
-              <ChartContainer className="h-[400px] w-full">
+              <ChartContainer 
+                config={{
+                  efficiency: {
+                    label: "Token Efficiency",
+                    color: "hsl(var(--destructive))",
+                  },
+                }}
+                className="h-[550px] w-full" 
+                key={`token-eff-${selectedModel}-${currentData.length}-${currentData[0]?.efficiency || 0}`}
+              >
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={currentData}
@@ -133,7 +248,16 @@ export default function TokenEfficiencyVisualization() {
           </TabsContent>
           <TabsContent value="compression">
   <div className="mt-4">
-    <ChartContainer className="h-[450px] w-full">
+    <ChartContainer 
+      config={{
+        compression: {
+          label: "Compression Ratio",
+          color: "hsl(var(--chart-1))",
+        },
+      }}
+      className="h-[600px] w-full" 
+      key={`compression-${compressionRatioData.length}-${compressionRatioData[0]?.originalLength || 0}`}
+    >
       <ResponsiveContainer width="100%" height="100%">
       <ScatterChart
   margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
@@ -155,22 +279,35 @@ export default function TokenEfficiencyVisualization() {
   />
   <ZAxis type="category" dataKey="task" name="Task" />
   <Tooltip content={<CustomScatterTooltip />} />
-  <Scatter
-    name="Compression Ratio"
-    data={compressionRatioData}
-    fill="hsl(var(--primary))"
-  />
-  {/* Adding the y=x line without points */}
-  <Scatter
-    name="y = x Line"
-    data={[
-      { originalLength: 0, generatedLength: 0 },
-      { originalLength: 120, generatedLength: 120 },
-    ]}
-    line
-    shape={() => null} // Custom shape that renders nothing
-    stroke="red"
-    fill="red"
+  {compressionRatioData.map((point, index) => {
+    // Use different colors for each point to make them distinguishable
+    const colors = [
+      "hsl(var(--chart-1))",
+      "hsl(var(--chart-2))",
+      "hsl(var(--chart-3))",
+      "hsl(var(--chart-4))",
+      "hsl(var(--chart-5))",
+    ];
+    const color = colors[index % colors.length];
+    
+    return (
+      <Scatter
+        key={`scatter-${point.id}-${index}`}
+        name={point.task}
+        data={[point]}
+        fill={color}
+        stroke={color}
+        strokeWidth={2}
+        fillOpacity={0.8}
+      />
+    );
+  })}
+  {/* Diagonal reference line y=x */}
+  <ReferenceLine 
+    segment={[{ x: 0, y: 0 }, { x: 120, y: 120 }]}
+    stroke="red" 
+    strokeWidth={2} 
+    strokeDasharray="3 3"
   />
 </ScatterChart>
 
@@ -188,35 +325,6 @@ export default function TokenEfficiencyVisualization() {
 
 
         </Tabs>
-        <div className="mt-8">
-          {tokenEfficiencyData.map((item) => (
-            <Dialog key={item.id}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="mr-2 mb-2">
-                  {item.task} Example
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle>{item.task}</DialogTitle>
-                  <DialogDescription>
-                    Efficiency: {item.efficiency.toFixed(2)}
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div>
-                    <h4 className="mb-2 font-medium">Original Text:</h4>
-                    <p className="text-sm">{item.originalText}</p>
-                  </div>
-                  <div>
-                    <h4 className="mb-2 font-medium">Generated Text:</h4>
-                    <p className="text-sm">{item.generatedText}</p>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-          ))}
-        </div>
       </CardContent>
     </Card>
   )

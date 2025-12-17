@@ -1,3 +1,4 @@
+import logging
 from .gqs import compute_metrics, compute_aggregate_gqs_from_finetuned_model
 from .perplexity import prepare_dataset, compute_perplexity_lm, compute_batch_perplexity
 from .semantic import compute_semantic_similarity, compute_semantic_coherence
@@ -10,6 +11,8 @@ from .tokenefficiency import (
 )
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from datasets import load_dataset
+
+logger = logging.getLogger(__name__)
 
 
 def run_all_analytics(model, tokenizer, dataset_url):
@@ -25,15 +28,20 @@ def run_all_analytics(model, tokenizer, dataset_url):
         dict: Comprehensive analytics results
     """
     try:
+        logger.info(f"Starting analytics computation for dataset: {dataset_url}")
+        
         # Fix tokenizer padding token if needed
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
+            logger.debug("Set tokenizer pad_token to eos_token")
+        
         # Step 1: Load dataset and extract texts
         try:
+            logger.info(f"Loading dataset: {dataset_url}")
             dataset = load_dataset(dataset_url)
             # Check available splits
             available_splits = list(dataset.keys())
-            print(f"Available splits for {dataset_url}: {available_splits}")
+            logger.info(f"Available splits for {dataset_url}: {available_splits}")
             
             # Choose the best available split
             if "validation" in available_splits:
@@ -43,12 +51,15 @@ def run_all_analytics(model, tokenizer, dataset_url):
             elif "train" in available_splits:
                 split_name = "train"
             else:
-                raise ValueError(f"No suitable split found in dataset {dataset_url}")
+                raise ValueError(f"No suitable split found in dataset {dataset_url}. Available splits: {available_splits}")
             
             dataset = dataset[split_name]
-            print(f"Using split: {split_name}")
+            logger.info(f"Using split: {split_name} with {len(dataset)} examples")
             
         except Exception as e:
+            logger.error(f"Failed to load dataset {dataset_url}: {str(e)}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             raise RuntimeError(f"Failed to load dataset {dataset_url}: {str(e)}")
         
         # Extract texts based on dataset structure
@@ -80,23 +91,57 @@ def run_all_analytics(model, tokenizer, dataset_url):
                 continue
         
         if not texts:
-            raise ValueError(f"No suitable text fields found in dataset {dataset_url}")
+            error_msg = f"No suitable text fields found in dataset {dataset_url}"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
         
-        print(f"Successfully extracted {len(texts)} texts from dataset")
+        logger.info(f"Successfully extracted {len(texts)} texts from dataset")
 
         # Step 2: Compute Perplexity
-        perplexity_results = compute_perplexity_lm(model, tokenizer, texts[0])  # Compute for first text as example
-
+        try:
+            logger.info("Computing perplexity...")
+            perplexity_results = compute_perplexity_lm(model, tokenizer, texts[0])  # Compute for first text as example
+            logger.info(f"Perplexity computation completed: {perplexity_results}")
+        except Exception as e:
+            logger.error(f"Error computing perplexity: {str(e)}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            perplexity_results = {"error": str(e)}
+        
         # Step 3: Compute GQS Metrics
-        predictions = texts[:10]  # Use first 10 texts as predictions
-        references = texts[:10]   # Use same texts as references
-        gqs_results = compute_metrics(predictions, references)
-
+        try:
+            logger.info("Computing GQS metrics...")
+            predictions = texts[:10]  # Use first 10 texts as predictions
+            references = texts[:10]   # Use same texts as references
+            gqs_results = compute_metrics(predictions, references)
+            logger.info(f"GQS metrics computation completed: {gqs_results}")
+        except Exception as e:
+            logger.error(f"Error computing GQS metrics: {str(e)}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            gqs_results = {"error": str(e)}
+        
         # Step 4: Compute Semantic Similarity
-        semantic_similarity = compute_semantic_similarity(predictions, references)
-
+        try:
+            logger.info("Computing semantic similarity...")
+            semantic_similarity = compute_semantic_similarity(predictions, references)
+            logger.info(f"Semantic similarity computation completed: {semantic_similarity}")
+        except Exception as e:
+            logger.error(f"Error computing semantic similarity: {str(e)}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            semantic_similarity = {"error": str(e)}
+        
         # Step 5: Compute Semantic Coherence
-        coherence_score = compute_semantic_coherence(texts[:5])
+        try:
+            logger.info("Computing semantic coherence...")
+            coherence_score = compute_semantic_coherence(texts[:5])
+            logger.info(f"Semantic coherence computation completed: {coherence_score}")
+        except Exception as e:
+            logger.error(f"Error computing semantic coherence: {str(e)}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            coherence_score = {"error": str(e)}
 
         # Step 6: Compute Token Efficiency (for different tasks)
         # Note: This requires specific dataset formats, so we'll provide a template
@@ -122,6 +167,9 @@ def run_all_analytics(model, tokenizer, dataset_url):
         }
 
     except Exception as e:
+        logger.error(f"Error in running analytics: {str(e)}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
         raise RuntimeError(f"Error in running analytics: {str(e)}")
 
 
@@ -138,7 +186,10 @@ def run_model_evaluation(model_name, dataset_url, task_type="text_generation"):
         dict: Evaluation results
     """
     try:
+        logger.info(f"Starting model evaluation for model: {model_name}, dataset: {dataset_url}, task: {task_type}")
+        
         # Load model and tokenizer
+        logger.info(f"Loading model and tokenizer: {model_name}")
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         model = AutoModelForCausalLM.from_pretrained(model_name)
         
@@ -148,10 +199,11 @@ def run_model_evaluation(model_name, dataset_url, task_type="text_generation"):
         
         # Load dataset
         try:
+            logger.info(f"Loading dataset: {dataset_url}")
             dataset = load_dataset(dataset_url)
             # Check available splits
             available_splits = list(dataset.keys())
-            print(f"Available splits for {dataset_url}: {available_splits}")
+            logger.info(f"Available splits for {dataset_url}: {available_splits}")
             
             # Choose the best available split
             if "validation" in available_splits:
@@ -161,12 +213,15 @@ def run_model_evaluation(model_name, dataset_url, task_type="text_generation"):
             elif "train" in available_splits:
                 split_name = "train"
             else:
-                raise ValueError(f"No suitable split found in dataset {dataset_url}")
+                raise ValueError(f"No suitable split found in dataset {dataset_url}. Available splits: {available_splits}")
             
             dataset = dataset[split_name]
-            print(f"Using split: {split_name}")
+            logger.info(f"Using split: {split_name} with {len(dataset)} examples")
             
         except Exception as e:
+            logger.error(f"Failed to load dataset {dataset_url}: {str(e)}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             raise RuntimeError(f"Failed to load dataset {dataset_url}: {str(e)}")
         
         # Extract texts based on dataset structure
@@ -198,19 +253,45 @@ def run_model_evaluation(model_name, dataset_url, task_type="text_generation"):
                 continue
         
         if not texts:
-            raise ValueError(f"No suitable text fields found in dataset {dataset_url}")
+            error_msg = f"No suitable text fields found in dataset {dataset_url}"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
         
-        print(f"Successfully extracted {len(texts)} texts from dataset")
+        logger.info(f"Successfully extracted {len(texts)} texts from dataset")
         
         # Compute perplexity
-        perplexities = compute_batch_perplexity(model, tokenizer, texts[:10])
-        avg_perplexity = sum(perplexities) / len(perplexities)
+        try:
+            logger.info("Computing batch perplexity...")
+            perplexities = compute_batch_perplexity(model, tokenizer, texts[:10])
+            avg_perplexity = sum(perplexities) / len(perplexities)
+            logger.info(f"Average perplexity: {avg_perplexity}")
+        except Exception as e:
+            logger.error(f"Error computing perplexity: {str(e)}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            avg_perplexity = 0.0
         
         # Compute GQS metrics
-        gqs_results = compute_metrics(texts[:10], texts[:10])
+        try:
+            logger.info("Computing GQS metrics...")
+            gqs_results = compute_metrics(texts[:10], texts[:10])
+            logger.info(f"GQS metrics: {gqs_results}")
+        except Exception as e:
+            logger.error(f"Error computing GQS metrics: {str(e)}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            gqs_results = {"error": str(e)}
         
         # Compute semantic coherence
-        coherence = compute_semantic_coherence(texts[:5])
+        try:
+            logger.info("Computing semantic coherence...")
+            coherence = compute_semantic_coherence(texts[:5])
+            logger.info(f"Semantic coherence: {coherence}")
+        except Exception as e:
+            logger.error(f"Error computing semantic coherence: {str(e)}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            coherence = 0.0
         
         return {
             "model_name": model_name,
@@ -222,6 +303,9 @@ def run_model_evaluation(model_name, dataset_url, task_type="text_generation"):
         }
         
     except Exception as e:
+        logger.error(f"Error in model evaluation: {str(e)}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
         raise RuntimeError(f"Error in model evaluation: {str(e)}")
 
 
@@ -238,8 +322,12 @@ def run_comparative_analysis(model1_name, model2_name, dataset_url):
         dict: Comparative analysis results
     """
     try:
+        logger.info(f"Starting comparative analysis: {model1_name} vs {model2_name} on {dataset_url}")
+        
         # Evaluate both models
+        logger.info(f"Evaluating first model: {model1_name}")
         results1 = run_model_evaluation(model1_name, dataset_url)
+        logger.info(f"Evaluating second model: {model2_name}")
         results2 = run_model_evaluation(model2_name, dataset_url)
         
         # Compute differences
@@ -259,6 +347,9 @@ def run_comparative_analysis(model1_name, model2_name, dataset_url):
         return comparison
         
     except Exception as e:
+        logger.error(f"Error in comparative analysis: {str(e)}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
         raise RuntimeError(f"Error in comparative analysis: {str(e)}")
 
 
