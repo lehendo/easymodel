@@ -179,4 +179,5 @@ results/
 config.ini
 secrets.json
 secrets.yaml
-secrets.yml
+secrets.ymlgrizzly/prisma/*.db
+grizzly/prisma/*.db-journal

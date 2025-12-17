@@ -48,10 +48,30 @@ export const projectRouter = createTRPCRouter({
       }
 
       // Parse JSON string back to object for each project
-      return projects.map(project => ({
-        ...project,
-        nodes: typeof project.nodes === 'string' ? JSON.parse(project.nodes) : project.nodes,
-      }));
+      return projects.map(project => {
+        const parsed = typeof project.nodes === 'string' ? JSON.parse(project.nodes) : project.nodes;
+        
+        // Support both old format (just nodes array) and new format (nodes+edges object)
+        if (Array.isArray(parsed)) {
+          // Old format: just nodes array
+          return {
+            ...project,
+            nodes: parsed,
+          };
+        } else if (parsed && typeof parsed === 'object' && 'nodes' in parsed) {
+          // New format: { nodes: [], edges: [] }
+          return {
+            ...project,
+            nodes: parsed.nodes || [],
+            edges: parsed.edges || [],
+          };
+        } else {
+          return {
+            ...project,
+            nodes: [],
+          };
+        }
+      });
     } catch (error) {
       // Database not available - return in-memory default project
       console.warn("Database error, returning in-memory project:", error);
@@ -85,10 +105,29 @@ export const projectRouter = createTRPCRouter({
         }
 
         // Parse JSON string to object
-        return {
-          ...project,
-          nodes: typeof project.nodes === 'string' ? JSON.parse(project.nodes) : project.nodes,
-        };
+        const parsed = typeof project.nodes === 'string' ? JSON.parse(project.nodes) : project.nodes;
+        
+        // Support both old format (just nodes array) and new format (nodes+edges object)
+        if (Array.isArray(parsed)) {
+          // Old format: just nodes array
+          return {
+            ...project,
+            nodes: parsed,
+          };
+        } else if (parsed && typeof parsed === 'object' && 'nodes' in parsed) {
+          // New format: { nodes: [], edges: [] }
+          return {
+            ...project,
+            nodes: parsed.nodes || [],
+            edges: parsed.edges || [],
+          };
+        } else {
+          // Fallback
+          return {
+            ...project,
+            nodes: [],
+          };
+        }
       } catch (error) {
         // If database error, return in-memory project
         if (input.projectId === ctx.defaultProjectId || input.projectId === "untitled-project-in-memory") {
@@ -255,11 +294,13 @@ export const projectRouter = createTRPCRouter({
       z.object({
         projectId: z.string(),
         nodes: z.array(z.object({})), // Expect an array of objects (the nodes)
+        edges: z.array(z.object({})).optional(), // Optional edges array
       }),
     )
     .mutation(async ({ ctx, input }) => {
       console.log("Project ID:", input.projectId);
       console.log("Received Nodes:", input.nodes);
+      console.log("Received Edges:", input.edges);
 
       try {
         // Find project (no auth required)
@@ -279,20 +320,28 @@ export const projectRouter = createTRPCRouter({
 
         console.log("Project found:", project);
 
+        // Store both nodes and edges in the nodes field as a combined JSON object
+        // This works with the existing schema without requiring a migration
+        const combinedData = {
+          nodes: input.nodes,
+          edges: input.edges || [],
+        };
+
         // Update nodes with the new JSON data (convert to string for SQLite)
         const updatedProject = await ctx.db.project.update({
           where: { id: input.projectId },
           data: {
-            nodes: JSON.stringify(input.nodes), // Store as JSON string for SQLite
+            nodes: JSON.stringify(combinedData), // Store combined nodes+edges as JSON string for SQLite
           },
         });
 
-        console.log("Project updated with new nodes:", updatedProject);
+        console.log("Project updated with new nodes and edges:", updatedProject);
 
         // Parse JSON string back to object
+        const parsed = typeof updatedProject.nodes === 'string' ? JSON.parse(updatedProject.nodes) : updatedProject.nodes;
         return {
           ...updatedProject,
-          nodes: typeof updatedProject.nodes === 'string' ? JSON.parse(updatedProject.nodes) : updatedProject.nodes,
+          nodes: parsed.nodes || parsed, // Support both old format (just nodes) and new format (nodes+edges)
         };
       } catch (error) {
         // If database error, just return success (nodes stored in localStorage anyway)

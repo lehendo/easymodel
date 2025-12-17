@@ -8,6 +8,9 @@ from dotenv import load_dotenv
 import uvicorn
 import os
 
+# Set tokenizers parallelism to avoid warnings
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 # Load environment variables from .env file
 load_dotenv()
 

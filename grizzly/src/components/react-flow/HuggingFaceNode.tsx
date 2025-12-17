@@ -34,37 +34,67 @@ export default function HuggingFaceNode({ data, id }) {
 
   // Function to extract the model ID from a full URL or accept it directly
   const extractModelId = (input) => {
+    if (!input || !input.trim()) return input;
+    
+    const trimmed = input.trim();
+    
     try {
-      const url = new URL(input);
-      if (url.hostname === "huggingface.co") {
-        return url.pathname.slice(1); // Remove the leading "/"
+      const url = new URL(trimmed);
+      if (url.hostname === "huggingface.co" || url.hostname === "www.huggingface.co") {
+        let path = url.pathname;
+        // Remove leading slash
+        if (path.startsWith("/")) {
+          path = path.slice(1);
+        }
+        // Remove "models/" prefix if present (some URLs have this)
+        if (path.startsWith("models/")) {
+          path = path.slice(7); // "models/" is 7 characters
+        }
+        return path;
       }
     } catch {
       // If it's not a valid URL, assume it's a raw modelId
     }
-    return input; // Return the input as-is if it's not a URL
+    return trimmed; // Return the trimmed input as-is if it's not a URL
   };
 
   // Function to validate model existence using Hugging Face Hub library
+  // NOTE: Validation is optional - backend will validate during training
+  // This is just a convenience check and can be skipped if rate limited
   const validateModelId = async () => {
+    if (!modelId || !modelId.trim()) {
+      return; // Don't validate empty input
+    }
+    
     const trimmedModelId = extractModelId(modelId);
+    
+    // If extraction resulted in empty, use original
+    if (!trimmedModelId) {
+      return;
+    }
+    
+    // Update the display to show the extracted ID (even without validation)
+    setModelId(trimmedModelId);
+    
+    // Try to validate, but don't block if it fails (rate limiting, network issues, etc.)
     try {
       await hub.modelInfo({ name: trimmedModelId });
-      setModelId(trimmedModelId); // Update the display to show only the model ID
-    } catch {
-      toast({
-        variant: "destructive",
-        title: "Uh oh! Something went wrong.",
-        description: "Invalid HuggingFace model URL given.",
-      });
-      setModelId(""); // Clear the input on error
+      console.log("Model validated:", trimmedModelId);
+    } catch (error) {
+      // Silently fail - validation is optional
+      // Backend will handle actual validation during training
+      console.log("Model validation skipped (rate limit or network issue):", error.message);
     }
   };
 
-  // Handle key press in the input field
+  // Handle key press in the input field - just extract ID, don't validate
   const handleKeyPress = (event) => {
     if (event.key === "Enter") {
-      validateModelId();
+      // Just extract and normalize the ID, don't validate
+      const trimmedModelId = extractModelId(modelId);
+      if (trimmedModelId) {
+        setModelId(trimmedModelId);
+      }
     }
   };
 
@@ -74,8 +104,8 @@ export default function HuggingFaceNode({ data, id }) {
 
   return (
     <div
-      className="rounded-lg border-2 border-gray-300 p-4 shadow-md"
-      style={{ backgroundColor: "#FFC107", color: "#333" }}
+      className="rounded-lg border-2 border-gray-300 p-4 shadow-md bg-[#FFC107]"
+      style={{ color: "#333" }}
     >
       <Handle
         type="target"
@@ -101,11 +131,10 @@ export default function HuggingFaceNode({ data, id }) {
         onChange={handleChange}
         onKeyDown={handleKeyPress}
         placeholder="Enter model URL or userName/modelName"
-        className="nodrag w-full rounded border p-2 text-sm"
+        className="nodrag w-full rounded border p-2 text-sm border-[#FF9900]"
         style={{
-          backgroundColor: "#fff", // White for clarity
-          color: "#333", // Dark text
-          borderColor: "#FF9900", // Hugging Face accent
+          backgroundColor: "#fff",
+          color: "#333",
         }}
       />
       <Handle

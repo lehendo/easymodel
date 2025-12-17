@@ -201,9 +201,49 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
     },
   });
 
+  // Store analytics mutation
+  const storeAnalyticsMutation = api.analytics.upsertAnalyticsData.useMutation({
+    onSuccess: () => {
+      console.log("Analytics data stored successfully");
+    },
+    onError: (error) => {
+      console.error("Failed to store analytics:", error);
+    },
+  });
+
   // Handle progress updates from SSE stream
   const handleProgressUpdate = (update: any) => {
     try {
+      // Handle analytics updates
+      if (update.stage === "analytics" && update.analytics && update.project_id) {
+        console.log("[FinetuningNode] Received analytics update:", {
+          epoch: update.epoch,
+          hasPerplexity: !!update.analytics.perplexity,
+          perplexityEpochs: update.analytics.perplexity?.epochs?.length || 0,
+          perplexityEpochsArray: update.analytics.perplexity?.epochs,
+          hasSemanticDrift: !!update.analytics.semanticDrift,
+          semanticSegments: update.analytics.semanticDrift?.segments?.length || 0,
+          semanticSegmentsArray: update.analytics.semanticDrift?.segments,
+          hasGQS: !!update.analytics.gqs,
+          gqsModelLength: update.analytics.gqs?.model?.length || 0,
+        });
+        setAnalyticsData(update.analytics);
+        
+        // Store analytics to database - this should contain all accumulated epochs
+        storeAnalyticsMutation.mutate({
+          projectId: update.project_id,
+          data: update.analytics,
+        }, {
+          onSuccess: () => {
+            console.log("[FinetuningNode] Analytics stored successfully with", 
+              update.analytics.perplexity?.epochs?.length || 0, "epochs");
+          },
+          onError: (error) => {
+            console.error("[FinetuningNode] Failed to store analytics:", error);
+          }
+        });
+      }
+      
       // Update progress
       if (update.progress !== undefined) {
         setTrainingProgress(update.progress);
@@ -235,8 +275,10 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
           description: update.message || "Fine-tuning completed successfully.",
         });
         
-        // Fetch analytics after training completes
-        fetchAnalytics();
+        // Fetch analytics after training completes (fallback if not received via SSE)
+        if (!analyticsData) {
+          fetchAnalytics();
+        }
       }
       
       // Handle cancellation
@@ -434,28 +476,11 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
     setErrorMessage("");
   };
 
-  // Fetch analytics after training
+  // Fetch analytics after training (fallback - analytics are already stored via SSE)
   const fetchAnalytics = async () => {
-    try {
-      const apiUrl = sanitizedApiBaseUrl || (isHostedEnvironment ? undefined : "http://localhost:8000");
-      if (!apiUrl) return;
-      const analyticsResponse = await fetch(`${apiUrl}/analytics`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model_name: outputSpace.trim() || connectedNodes.model?.data?.modelId || "",
-          dataset_url: connectedNodes.dataset?.data?.datasetId || "",
-          task_type: taskType,
-        }),
-      });
-      
-      if (analyticsResponse.ok) {
-        const analytics = await analyticsResponse.json();
-        setAnalyticsData(analytics.results);
-      }
-    } catch (error) {
-      console.warn("Failed to fetch analytics:", error);
-    }
+    // Analytics are already stored via SSE updates, so this is just a no-op
+    // The analytics page will fetch from the database via tRPC
+    console.log("[FinetuningNode] Analytics should already be stored via SSE");
   };
 
   // Check if nodes are connected (even if modelId/datasetId not filled yet)
@@ -600,7 +625,7 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
   
 
   return (
-    <div className="rounded-lg border-2 border-blue-300 bg-white p-4 pb-8 shadow-md min-w-[320px] relative">
+    <div className="rounded-lg border-2 border-blue-300 dark:border-blue-600 bg-white dark:bg-black p-4 pb-8 shadow-md min-w-[320px] relative">
       <Handle 
         type="target" 
         position={Position.Top}
@@ -612,7 +637,7 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
         }}
       />
       
-      <div className="mb-3 text-center text-lg font-bold text-blue-700">
+      <div className="mb-3 text-center text-lg font-bold text-blue-700 dark:text-blue-400">
         Fine-tuning Node
       </div>
 
@@ -655,7 +680,7 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
       {/* Configuration Form */}
       <div className="space-y-2">
         <div>
-          <label className="mb-1 block text-xs font-semibold">
+          <label className="mb-1 block text-xs font-semibold dark:text-gray-200">
             Hugging Face API Token
           </label>
           <Input
@@ -684,7 +709,7 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
 
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="mb-1 block text-xs font-semibold">Epochs</label>
+            <label className="mb-1 block text-xs font-semibold dark:text-gray-200">Epochs</label>
             <Input
               type="number"
               value={numEpochs}
@@ -695,7 +720,7 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold">Batch Size</label>
+            <label className="mb-1 block text-xs font-semibold dark:text-gray-200">Batch Size</label>
             <Input
               type="number"
               value={batchSize}
@@ -720,7 +745,7 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold">Subset Size</label>
+            <label className="mb-1 block text-xs font-semibold dark:text-gray-200">Subset Size</label>
             <Input
               type="number"
               value={subsetSize}
@@ -737,7 +762,7 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
           <select
             value={taskType}
             onChange={(e) => setTaskType(e.target.value)}
-            className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-foreground"
             disabled={trainingStatus === "training"}
           >
             <option value="generation">Generation</option>
@@ -748,7 +773,7 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-semibold">Text Field</label>
+          <label className="mb-1 block text-xs font-semibold dark:text-gray-200">Text Field</label>
           <Input
             type="text"
             value={textField}
@@ -761,7 +786,7 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
 
         {taskType !== "generation" && (
           <div>
-            <label className="mb-1 block text-xs font-semibold">Label Field</label>
+            <label className="mb-1 block text-xs font-semibold dark:text-gray-200">Label Field</label>
             <Input
               type="text"
               value={labelField}
@@ -795,7 +820,7 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
 
       {/* Error Message */}
       {errorMessage && (
-        <div className="mt-2 flex items-center gap-2 rounded bg-red-50 p-2 text-xs text-red-600">
+        <div className="mt-2 flex items-center gap-2 rounded bg-red-50 dark:bg-red-900/30 p-2 text-xs text-red-600 dark:text-red-400">
           <AlertCircle className="h-4 w-4" />
           <span>{errorMessage}</span>
         </div>
@@ -803,30 +828,43 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
 
       {/* Success Message */}
       {trainingStatus === "success" && (
-        <div className="mt-3 rounded-lg border-2 border-green-300 bg-green-50 p-3">
+        <div className="mt-3 rounded-lg border-2 border-green-300 dark:border-green-600 bg-green-50 dark:bg-green-900/30 p-3">
           <div className="mb-2 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm font-bold text-green-800">
+            <div className="flex items-center gap-2 text-sm font-bold text-green-800 dark:text-green-300">
               <CheckCircle2 className="h-4 w-4" />
               <span>Training Completed!</span>
             </div>
             <button
               onClick={handleResetTraining}
-              className="text-green-600 hover:text-green-800"
+              className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300"
               title="Close"
             >
               <XCircle className="h-4 w-4" />
             </button>
           </div>
-          <div className="text-xs text-green-700 mb-2">
+          <div className="text-xs text-green-700 dark:text-green-300 mb-2">
             Your model has been successfully trained and uploaded to Hugging Face!
           </div>
           
           {/* Analytics Card */}
           {analyticsData && (
-            <div className="mt-2 space-y-1 text-xs text-green-700 border-t border-green-300 pt-2">
+            <div className="mt-2 space-y-1 text-xs text-green-700 dark:text-green-300 border-t border-green-300 dark:border-green-600 pt-2">
               <div className="font-semibold">Training Metrics:</div>
               {analyticsData.perplexity && (
-                <div>Perplexity: {analyticsData.perplexity.toFixed(2)}</div>
+                (() => {
+                  // Handle perplexity as object with epochs/validation arrays
+                  const perp = analyticsData.perplexity;
+                  if (typeof perp === 'object' && perp.validation && perp.validation.length > 0) {
+                    const latestVal = perp.validation[perp.validation.length - 1];
+                    return <div>Validation Perplexity: {latestVal.toFixed(2)}</div>;
+                  } else if (typeof perp === 'number') {
+                    return <div>Perplexity: {perp.toFixed(2)}</div>;
+                  }
+                  return null;
+                })()
+              )}
+              {analyticsData.semanticDrift && analyticsData.semanticDrift.similarity && analyticsData.semanticDrift.similarity.length > 0 && (
+                <div>Semantic Similarity: {(analyticsData.semanticDrift.similarity[analyticsData.semanticDrift.similarity.length - 1] * 100).toFixed(1)}%</div>
               )}
               {analyticsData.accuracy && (
                 <div>Accuracy: {(analyticsData.accuracy * 100).toFixed(2)}%</div>
@@ -837,7 +875,8 @@ export default function FinetuningNode({ data, id }: { data: any; id: string }) 
               {analyticsData.loss && (
                 <div>Loss: {analyticsData.loss.toFixed(4)}</div>
               )}
-              {!analyticsData.perplexity && !analyticsData.accuracy && !analyticsData.f1_score && (
+              {(!analyticsData.perplexity || (typeof analyticsData.perplexity === 'object' && (!analyticsData.perplexity.validation || analyticsData.perplexity.validation.length === 0))) && 
+               !analyticsData.accuracy && !analyticsData.f1_score && !analyticsData.semanticDrift && (
                 <div>Check your model on Hugging Face Hub for detailed metrics.</div>
               )}
             </div>

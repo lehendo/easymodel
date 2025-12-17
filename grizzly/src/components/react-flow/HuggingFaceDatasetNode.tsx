@@ -34,38 +34,67 @@ export default function HuggingFaceDatasetNode({ data, id }) {
 
   // Function to extract the dataset ID from a full URL or accept it directly
   const extractDatasetId = (input) => {
+    if (!input || !input.trim()) return input;
+    
+    const trimmed = input.trim();
+    
     try {
-      const url = new URL(input);
-      if (url.hostname === "huggingface.co") {
-        return url.pathname.slice(10); // Remove the leading "/"
+      const url = new URL(trimmed);
+      if (url.hostname === "huggingface.co" || url.hostname === "www.huggingface.co") {
+        let path = url.pathname;
+        // Remove leading slash
+        if (path.startsWith("/")) {
+          path = path.slice(1);
+        }
+        // Remove "datasets/" prefix if present
+        if (path.startsWith("datasets/")) {
+          path = path.slice(9); // "datasets/" is 9 characters
+        }
+        return path;
       }
     } catch {
       // If it's not a valid URL, assume it's a raw datasetId
     }
-    return input; // Return the input as-is if it's not a URL
+    return trimmed; // Return the trimmed input as-is if it's not a URL
   };
 
   // Function to validate dataset existence using Hugging Face Hub library
+  // NOTE: Validation is optional - backend will validate during training
+  // This is just a convenience check and can be skipped if rate limited
   const validateDatasetId = async () => {
+    if (!datasetId || !datasetId.trim()) {
+      return; // Don't validate empty input
+    }
+    
     const trimmedDatasetId = extractDatasetId(datasetId);
+    
+    // If extraction resulted in empty, use original
+    if (!trimmedDatasetId) {
+      return;
+    }
+    
+    // Update the display to show the extracted ID (even without validation)
+    setDatasetId(trimmedDatasetId);
+    
+    // Try to validate, but don't block if it fails (rate limiting, network issues, etc.)
     try {
       const datasetInfo = await hub.datasetInfo({ name: trimmedDatasetId });
-      console.log("Dataset exists:", datasetInfo);
-      setDatasetId(trimmedDatasetId); // Update the display to show only the dataset ID
-    } catch {
-      toast({
-        variant: "destructive",
-        title: "Uh oh! Something went wrong.",
-        description: "Invalid HuggingFace dataset URL given.",
-      });
-      setDatasetId(""); // Clear the input on error
+      console.log("Dataset validated:", trimmedDatasetId);
+    } catch (error) {
+      // Silently fail - validation is optional
+      // Backend will handle actual validation during training
+      console.log("Dataset validation skipped (rate limit or network issue):", error.message);
     }
   };
 
-  // Handle key press in the input field
+  // Handle key press in the input field - just extract ID, don't validate
   const handleKeyPress = (event) => {
     if (event.key === "Enter") {
-      validateDatasetId();
+      // Just extract and normalize the ID, don't validate
+      const trimmedDatasetId = extractDatasetId(datasetId);
+      if (trimmedDatasetId) {
+        setDatasetId(trimmedDatasetId);
+      }
     }
   };
 
@@ -75,8 +104,8 @@ export default function HuggingFaceDatasetNode({ data, id }) {
 
   return (
     <div
-      className="rounded-lg border-2 border-gray-300 p-4 shadow-md"
-      style={{ backgroundColor: "#FF9800", color: "#333" }}
+      className="rounded-lg border-2 border-gray-300 p-4 shadow-md bg-[#FF9800]"
+      style={{ color: "#333" }}
     >
       <Handle
         type="target"
@@ -101,12 +130,11 @@ export default function HuggingFaceDatasetNode({ data, id }) {
         value={datasetId} // Always display the trimmed dataset ID
         onChange={handleChange}
         onKeyDown={handleKeyPress}
-        placeholder="Enter model URL or userName/modelName"
-        className="nodrag w-full rounded border p-2 text-sm"
+        placeholder="Enter dataset URL or userName/datasetName"
+        className="nodrag w-full rounded border p-2 text-sm border-[#FF9900]"
         style={{
-          backgroundColor: "#fff", // White for clarity
-          color: "#333", // Dark text
-          borderColor: "#FF9900", // Hugging Face accent
+          backgroundColor: "#fff",
+          color: "#333",
         }}
       />
       <Handle

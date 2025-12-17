@@ -26,7 +26,9 @@ import {
 } from "../ui/dropdown-menu";
 import { ChevronRight, ChevronLeft, MoreHorizontal } from "lucide-react";
 import { api } from "../../trpc/react";
-import { useRouter, usePathname } from "next/navigation"; // Import useRouter for navigation and usePathname
+import { useRouter, usePathname } from "next/navigation";
+import { cn } from "../../lib/utils";
+import { ThemeToggle } from "../theme-toggle";
 
 interface Project {
   id: string;
@@ -44,14 +46,13 @@ export default function LeftSidebar() {
 
   const { data: projects = [], refetch } =
     api.project.getAllProjects.useQuery();
-  const router = useRouter(); // Initialize useRouter for navigation
-  const pathname = usePathname(); // Get the current pathname to determine active project
+  const router = useRouter();
+  const pathname = usePathname();
 
   const createProject = api.project.createProject.useMutation({
     onSuccess: (newProject) => {
       refetch();
       toast({ title: "Success", description: "Project created successfully." });
-      // Navigate to the new project
       router.push(`/project/${newProject.id}/dashboard`);
     },
     onError: (error) => {
@@ -75,7 +76,6 @@ export default function LeftSidebar() {
     onSuccess: () => {
       refetch();
       toast({ title: "Success", description: "Project updated successfully." });
-      // Don't navigate - preserve current project state
     },
     onError: (error) => {
       if (error.message.includes("already exists")) {
@@ -99,11 +99,9 @@ export default function LeftSidebar() {
       await refetch();
       if (result.createdNewUntitled && 'id' in result) {
         toast({ title: "Success", description: "Project deleted. New Untitled Project created." });
-        // Navigate to the new untitled project
         router.push(`/project/${result.id}/dashboard`);
       } else {
         toast({ title: "Success", description: "Project deleted successfully." });
-        // Refetch and get updated projects list
         const updatedProjects = await refetch();
         if (updatedProjects.data && updatedProjects.data.length > 0) {
           router.push(`/project/${updatedProjects.data[0]!.id}/dashboard`);
@@ -158,10 +156,11 @@ export default function LeftSidebar() {
     }
   };
 
-  // Handle navigation on project click
   const handleProjectClick = (projectId: string) => {
-    router.push(`/project/${projectId}/dashboard`); // Navigate to the project page
+    router.push(`/project/${projectId}/dashboard`);
   };
+
+  const currentProjectId = pathname ? (pathname.match(/^\/project\/([^/]+)/)?.[1] ?? null) : null;
 
   return (
     <Collapsible
@@ -171,15 +170,18 @@ export default function LeftSidebar() {
     >
       <div className="flex h-[52px] items-center justify-between px-2">
         {isExpanded && <h2 className="text-lg font-semibold">Projects</h2>}
-        <CollapsibleTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-9 w-9">
-            {isExpanded ? (
-              <ChevronLeft className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
-          </Button>
-        </CollapsibleTrigger>
+        <div className="flex items-center gap-2">
+          {isExpanded && <ThemeToggle />}
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-9 w-9">
+              {isExpanded ? (
+                <ChevronLeft className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </Button>
+          </CollapsibleTrigger>
+        </div>
       </div>
       <CollapsibleContent className="space-y-2">
         <ScrollArea
@@ -194,46 +196,53 @@ export default function LeftSidebar() {
               <span className="flex-grow text-center">New Project</span>
             </Button>
 
-            {projects.map((project) => (
-              <div
-                key={project.id}
-                className="flex items-center justify-between"
-              >
-                <Button
-                  variant="ghost"
-                  className="justify-start p-3"
-                  onClick={() => handleProjectClick(project.id)} // Add onClick handler to navigate
+            {projects.map((project) => {
+              const isActive = currentProjectId === project.id;
+              return (
+                <div
+                  key={project.id}
+                  className="flex items-center justify-between"
                 >
-                  {project.name}
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setCurrentProject(project);
-                        setNewProjectName(project.name);
-                        setIsEditDialogOpen(true);
-                      }}
-                    >
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setCurrentProject(project);
-                        setIsDeleteDialogOpen(true);
-                      }}
-                    >
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            ))}
+                  <Button
+                    variant={isActive ? "secondary" : "ghost"}
+                    className={cn(
+                      "justify-start p-3",
+                      isActive && "bg-primary text-primary-foreground font-semibold hover:bg-primary hover:text-primary-foreground",
+                      !isActive && "hover:bg-accent hover:text-accent-foreground"
+                    )}
+                    onClick={() => handleProjectClick(project.id)}
+                  >
+                    {project.name}
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setCurrentProject(project);
+                          setNewProjectName(project.name);
+                          setIsEditDialogOpen(true);
+                        }}
+                      >
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setCurrentProject(project);
+                          setIsDeleteDialogOpen(true);
+                        }}
+                      >
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              );
+            })}
           </div>
         </ScrollArea>
       </CollapsibleContent>

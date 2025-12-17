@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import { Button } from "../ui/button"
 import { Slider } from "../ui/slider"
@@ -8,7 +8,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { ChartContainer } from "../ui/chart"
 import { ZoomIn, ZoomOut } from 'lucide-react'
 
-// Simulated data for semantic consistency over text segments
+// Simulated data for semantic consistency over text segments (fallback)
 const generateData = (segments: number) => {
   return Array.from({ length: segments }, (_, i) => ({
     segment: i + 1,
@@ -18,6 +18,15 @@ const generateData = (segments: number) => {
 }
 
 const initialData = generateData(50)
+
+interface SemanticDriftData {
+  segments?: number[];
+  similarity?: number[];
+}
+
+interface Props {
+  data?: SemanticDriftData;
+}
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -36,10 +45,27 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null
 }
 
-export default function SemanticDriftAnalysis() {
-  const [data, setData] = useState(initialData)
+export default function SemanticDriftAnalysis({ data: propData }: Props) {
   const [threshold, setThreshold] = useState(0.8)
   const [zoomLevel, setZoomLevel] = useState(1)
+
+  // Transform data for chart
+  const data = useMemo(() => {
+    if (!propData || !propData.segments || propData.segments.length === 0) {
+      return initialData;
+    }
+
+    const chartData = propData.segments.map((segment, index) => ({
+      segment,
+      similarity: propData.similarity?.[index] || 0,
+    }));
+    
+    // Debug log to verify data
+    console.log("[Semantic Chart] Data points:", chartData.length, "segments:", propData.segments, 
+                "similarity:", propData.similarity);
+    
+    return chartData;
+  }, [propData])
 
   // const handleZoomIn = () => {
   //   setZoomLevel(prev => Math.min(prev * 1.5, 4))
@@ -73,8 +99,8 @@ export default function SemanticDriftAnalysis() {
         <span className="ml-2 font-semibold">{threshold.toFixed(2)}</span>
       </div>
     </div>
-    <ChartContainer className="h-[600px] w-full"> {/* Increase height here */}
-      <ResponsiveContainer width="100%" height="100%"> {/* Ensure it fills the container */}
+    <ChartContainer className="h-[600px] w-full" key={`semantic-${data.length}-${data[data.length - 1]?.segment || 0}`}>
+      <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={data}
           margin={{ top: 20, right: 10, left: 10, bottom: 15 }}
